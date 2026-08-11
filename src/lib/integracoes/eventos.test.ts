@@ -12,7 +12,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { chaveEvento, extrairEnvelope, TAMANHO_MAXIMO_CORPO } from "./eventos.ts";
+// De `./envelope.ts`, NAO de `./eventos.ts`: aquele importa `db`, e importar
+// `db` cria um Pool do Postgres e exige DATABASE_URL so para carregar o modulo —
+// era o que quebrava este arquivo. Alias `@/` tambem nao funciona aqui: o
+// type-stripping do `node --test` nao aplica os `paths` do tsconfig.
+import { chaveEvento, extrairEnvelope, TAMANHO_MAXIMO_CORPO } from "./envelope.ts";
 
 // -- a) a chave separa reentrega de evento novo -----------------------------
 

@@ -336,3 +336,32 @@ docker exec -i mmsolues-db-1 psql -U dev -d mmsolucoes_dev < scripts/db/prova-co
 
 Esperado: 12/12 e 5/5. **Rode depois de toda migracao nova** — indice unico
 parcial e FK so falham de verdade quando exercitados.
+
+## Testes: o que pode e o que nao pode ser importado
+
+`npm test` roda `node --test` com **type-stripping nativo**, nao um bundler.
+Duas consequencias que quebram teste de forma confusa:
+
+**1. O alias `@/` nao funciona.** `paths` do `tsconfig.json` e resolucao de
+compilacao — o Next aplica, o `node --test` nao. Import com `@/lib/...` num
+modulo carregado por teste da `ERR_MODULE_NOT_FOUND: Cannot find package '@/lib'`.
+Dentro de `src/lib/`, use caminho relativo **com extensao `.ts`**.
+
+**2. Importar `db` liga o banco.** `src/lib/db/index.ts` valida `DATABASE_URL` e
+cria um `Pool` na **avaliacao do modulo** — nao na primeira query. Qualquer
+arquivo que importe `db`, direto ou transitivamente, arrasta isso para o teste:
+o teste passa a exigir Postgres no ar e deixa conexao pendurada.
+
+**Regra:** separe a logica pura do acesso a banco, em arquivos diferentes.
+O teste importa o modulo puro. Exemplos no repo:
+
+| Puro (tem teste) | Fala com banco |
+|---|---|
+| `src/lib/pricing.ts` | — |
+| `src/lib/integracoes/envelope.ts` | `src/lib/integracoes/eventos.ts` |
+
+O modulo que fala com banco pode **reexportar** o puro, para quem consome nao
+precisar saber da separacao. Foi o que `eventos.ts` faz.
+
+> Sintoma tipico de quem esbarra nisso: o teste falha citando um caminho que
+> existe. O caminho existe — quem nao existe e o resolvedor de alias.
