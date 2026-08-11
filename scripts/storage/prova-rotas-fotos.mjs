@@ -173,95 +173,123 @@ const itemCorrida = await itemDeProva("MM-PROVA-CORRIDA", "Item de prova (corrid
 await limpar(item);
 await limpar(itemCorrida);
 
-// 1) RN-109: sem foto nao vai para o site
-const semFoto = await patch(API, { item_id: item, exibir_no_site: true });
-checar(
-  semFoto.status === 400 && /RN-109/.test(semFoto.corpo.erro ?? ""),
-  `1) item sem foto recusado no toggle do site (${semFoto.status})`,
-);
+/**
+ * Falha de PRE-REQUISITO, nao de asserção: sem a foto no ar, os casos seguintes
+ * nao tem o que verificar. Levanta com diagnostico em vez de deixar o script
+ * estourar `undefined.url` — stack trace nao diz a alguem o que consertar.
+ */
+function exigirFoto({ status, corpo }, caso) {
+  if (status !== 201 || !corpo?.foto) {
+    throw new Error(
+      `caso ${caso}: o upload nao devolveu foto (HTTP ${status}, ${JSON.stringify(corpo)}).\n` +
+        "  HTTP 500 aqui e quase sempre `MINIO_*` ausente no .env do SERVIDOR —\n" +
+        "  o log do `npm run dev` nomeia a variavel que falta.",
+    );
+  }
+  return corpo.foto;
+}
 
-// 2) o conteudo manda, nao o nome nem o content-type
-const texto = await enviar(item, Buffer.from("isto aqui e texto puro"), "foto.png");
-checar(texto.status === 400, `2) arquivo que nao e imagem recusado (${texto.status})`);
+try {
+  // 1) RN-109: sem foto nao vai para o site
+  const semFoto = await patch(API, { item_id: item, exibir_no_site: true });
+  checar(
+    semFoto.status === 400 && /RN-109/.test(semFoto.corpo.erro ?? ""),
+    `1) item sem foto recusado no toggle do site (${semFoto.status})`,
+  );
 
-// 3) tamanho minimo do marketplace
-const pequena = await enviar(item, png(300), "pequena.png");
-checar(
-  pequena.status === 400 && /500px/.test(pequena.corpo.erro ?? ""),
-  `3) imagem menor que 500px recusada (${pequena.status})`,
-);
+  // 2) o conteudo manda, nao o nome nem o content-type
+  const texto = await enviar(item, Buffer.from("isto aqui e texto puro"), "foto.png");
+  checar(texto.status === 400, `2) arquivo que nao e imagem recusado (${texto.status})`);
 
-// 4) primeira foto vira capa sozinha
-const primeira = await enviar(item, png(800), "foto1.png", "Vista frontal");
-checar(
-  primeira.status === 201 && primeira.corpo.foto.principal === true &&
-    primeira.corpo.foto.ordem === 0 && primeira.corpo.foto.largura === 800,
-  `4) primeira foto entra como capa, ordem 0, 800px (${primeira.status})`,
-);
+  // 3) tamanho minimo do marketplace
+  const pequena = await enviar(item, png(300), "pequena.png");
+  checar(
+    pequena.status === 400 && /500px/.test(pequena.corpo.erro ?? ""),
+    `3) imagem menor que 500px recusada (${pequena.status})`,
+  );
 
-// 5) a segunda NAO rouba a capa
-const segunda = await enviar(item, png(900), "foto2.png");
-checar(
-  segunda.status === 201 && segunda.corpo.foto.principal === false && segunda.corpo.foto.ordem === 1,
-  `5) segunda foto entra como comum, ordem 1 (${segunda.status})`,
-);
+  // 4) primeira foto vira capa sozinha
+  const envio1 = await enviar(item, png(800), "foto1.png", "Vista frontal");
+  const primeira = exigirFoto(envio1, 4);
+  checar(
+    primeira.principal === true && primeira.ordem === 0 && primeira.largura === 800,
+    `4) primeira foto entra como capa, ordem 0, 800px (${envio1.status})`,
+  );
 
-// 6) o link publico e o que o ML e o navegador consomem — sem credencial
-const publica = await fetch(primeira.corpo.foto.url);
-checar(
-  publica.status === 200 && publica.headers.get("content-type") === "image/png",
-  `6) URL publica abre sem credencial como image/png (${publica.status})`,
-);
+  // 5) a segunda NAO rouba a capa
+  const envio2 = await enviar(item, png(900), "foto2.png");
+  const segunda = exigirFoto(envio2, 5);
+  checar(
+    segunda.principal === false && segunda.ordem === 1,
+    `5) segunda foto entra como comum, ordem 1 (${envio2.status})`,
+  );
 
-// 7) com foto, o toggle passa
-const comFoto = await patch(API, { item_id: item, exibir_no_site: true });
-checar(comFoto.status === 200, `7) item com foto pode ir para o site (${comFoto.status})`);
+  // 6) o link publico e o que o ML e o navegador consomem — sem credencial
+  const publica = await fetch(primeira.url);
+  checar(
+    publica.status === 200 && publica.headers.get("content-type") === "image/png",
+    `6) URL publica abre sem credencial como image/png (${publica.status})`,
+  );
 
-// 8) trocar a capa nao deixa duas
-await patch(`${API}/${segunda.corpo.foto.id}`, { principal: true });
-const aposTroca = await capasAtivas(item);
-const listaTroca = await listar(item);
-checar(
-  aposTroca.capas === 1 && listaTroca[0].id === segunda.corpo.foto.id,
-  `8) capa trocada, exatamente 1 capa e ela vem primeiro na lista (capas=${aposTroca.capas})`,
-);
+  // 7) com foto, o toggle passa
+  const comFoto = await patch(API, { item_id: item, exibir_no_site: true });
+  checar(comFoto.status === 200, `7) item com foto pode ir para o site (${comFoto.status})`);
 
-// 9) O CASO DO DEFEITO: excluir a capa promove a proxima
-const exclusao = await fetch(`${API}/${segunda.corpo.foto.id}`, { method: "DELETE" });
-const corpoExclusao = await exclusao.json();
-const aposExclusao = await capasAtivas(item);
-checar(
-  corpoExclusao.novaCapa === primeira.corpo.foto.id && aposExclusao.capas === 1,
-  `9) excluir a capa promove a proxima (novaCapa=${corpoExclusao.novaCapa}, capas=${aposExclusao.capas})`,
-);
+  // 8) trocar a capa nao deixa duas
+  await patch(`${API}/${segunda.id}`, { principal: true });
+  const aposTroca = await capasAtivas(item);
+  const listaTroca = await listar(item);
+  checar(
+    aposTroca.capas === 1 && listaTroca[0].id === segunda.id,
+    `8) capa trocada, exatamente 1 capa e ela vem primeiro na lista (capas=${aposTroca.capas})`,
+  );
 
-// 10) drag-and-drop: quatro uploads simultaneos, uma capa so
-const paralelos = await Promise.all([800, 820, 840, 860].map((l) => enviar(itemCorrida, png(l), "p.png")));
-const aposCorrida = await capasAtivas(itemCorrida);
-checar(
-  paralelos.every((r) => r.status === 201) && aposCorrida.ativas === 4 && aposCorrida.capas === 1,
-  `10) 4 uploads simultaneos: ${aposCorrida.ativas} fotos, ${aposCorrida.capas} capa`,
-);
+  // 9) O CASO DO DEFEITO: excluir a capa promove a proxima
+  const exclusao = await fetch(`${API}/${segunda.id}`, { method: "DELETE" });
+  const corpoExclusao = await exclusao.json();
+  const aposExclusao = await capasAtivas(item);
+  checar(
+    corpoExclusao.novaCapa === primeira.id && aposExclusao.capas === 1,
+    `9) excluir a capa promove a proxima (novaCapa=${corpoExclusao.novaCapa}, capas=${aposExclusao.capas})`,
+  );
 
-// 11) reordenar
-const antes = await listar(itemCorrida);
-const invertida = [...antes].reverse().map((f) => f.id);
-await patch(API, { item_id: itemCorrida, ordem: invertida });
-const depois = await listar(itemCorrida);
-checar(
-  depois.filter((f) => !f.principal).map((f) => f.id).join() ===
-    invertida.filter((id) => id !== depois.find((f) => f.principal)?.id).join(),
-  "11) reordenacao respeita a ordem enviada",
-);
+  // 10) drag-and-drop: quatro uploads simultaneos, uma capa so
+  const paralelos = await Promise.all(
+    [800, 820, 840, 860].map((l) => enviar(itemCorrida, png(l), "p.png")),
+  );
+  const aposCorrida = await capasAtivas(itemCorrida);
+  checar(
+    paralelos.every((r) => r.status === 201) && aposCorrida.ativas === 4 && aposCorrida.capas === 1,
+    `10) 4 uploads simultaneos: ${aposCorrida.ativas} fotos, ${aposCorrida.capas} capa`,
+  );
 
-// 12) id malformado nao chega ao banco
-const idRuim = await fetch(`${API}?item_id=nao-e-uuid`);
-checar(idRuim.status === 400, `12) item_id malformado recusado na borda (${idRuim.status})`);
+  // 11) reordenar
+  const antes = await listar(itemCorrida);
+  const invertida = [...antes].reverse().map((f) => f.id);
+  await patch(API, { item_id: itemCorrida, ordem: invertida });
+  const depois = await listar(itemCorrida);
+  checar(
+    depois.filter((f) => !f.principal).map((f) => f.id).join() ===
+      invertida.filter((id) => id !== depois.find((f) => f.principal)?.id).join(),
+    "11) reordenacao respeita a ordem enviada",
+  );
 
-await limpar(item);
-await limpar(itemCorrida);
-await pool.end();
+  // 12) id malformado nao chega ao banco
+  const idRuim = await fetch(`${API}?item_id=nao-e-uuid`);
+  checar(idRuim.status === 400, `12) item_id malformado recusado na borda (${idRuim.status})`);
+} catch (erro) {
+  // Aborta com diagnostico, e NAO com stack trace: quem roda isto quer saber o
+  // que consertar. O `finally` ainda limpa e imprime o placar.
+  console.log(`ABORTADO — ${erro.message}`);
+  falhou += 1;
+} finally {
+  // Limpeza tem que acontecer mesmo com falha, senao a proxima rodada comeca
+  // suja e o resultado passa a depender da anterior.
+  await limpar(item).catch(() => {});
+  await limpar(itemCorrida).catch(() => {});
+  await pool.end();
 
-console.log("-----------------------------------------");
-console.log(`RESULTADO: ${ok} passaram, ${falhou} falharam`);
-process.exitCode = falhou > 0 ? 1 : 0;
+  console.log("-----------------------------------------");
+  console.log(`RESULTADO: ${ok} passaram, ${falhou} falharam`);
+  process.exitCode = falhou > 0 ? 1 : 0;
+}
