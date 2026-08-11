@@ -1,0 +1,27 @@
+# Fim de linha: LF no repositorio E na copia de trabalho, em qualquer sistema.
+#
+# Sem este arquivo vale o `core.autocrlf` de cada maquina. Com `true` (padrao no
+# Windows) o checkout converte tudo para CRLF, e ai um `git diff` entre a maquina
+# de quem desenvolve e o runner do CI mostra ARQUIVO INTEIRO reescrito quando
+# nao mudou uma linha. Isso torna review impossivel e polui a culpa de cada
+# linha (`git blame`).
+#
+# `eol=lf` e nao so `text=auto` de proposito: o projeto roda em VPS Linux, os
+# scripts sao `.mjs`/`.sql` executados la, e o Docker monta o codigo direto.
+# LF em todo lugar e o unico jeito de a copia local ser igual a de producao.
+* text=auto eol=lf
+
+# Binarios: nunca normalizar. O Git detecta sozinho na maioria dos casos, mas
+# um PNG "corrigido" para LF corrompe silenciosamente — e o handoff de design
+# sao 17 PNGs que nao da para regerar.
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.woff  binary
+*.woff2 binary
+
+# Gerado pelo npm: aparece no diff como milhares de linhas e ninguem revisa.
+# Continua versionado (a build depende dele), so nao suja a leitura do PR.
+package-lock.json -diff linguist-generated
