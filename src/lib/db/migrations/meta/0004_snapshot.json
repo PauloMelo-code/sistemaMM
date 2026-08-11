@@ -824,18 +824,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "vendido_em": {
-          "name": "vendido_em",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "custo_na_venda": {
-          "name": "custo_na_venda",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "valor": {
           "name": "valor",
           "type": "numeric(14, 2)",
@@ -979,21 +967,6 @@
           "columns": [
             {
               "expression": "item_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_pedidos_vendido_em": {
-          "name": "idx_pedidos_vendido_em",
-          "columns": [
-            {
-              "expression": "vendido_em",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

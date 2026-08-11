@@ -16,13 +16,10 @@ CREATE TABLE "integracoes_eventos" (
 	"modified_by" uuid NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "pedidos" ADD COLUMN "vendido_em" timestamp NOT NULL;--> statement-breakpoint
-ALTER TABLE "pedidos" ADD COLUMN "custo_na_venda" numeric(14, 2) NOT NULL;--> statement-breakpoint
 ALTER TABLE "integracoes_eventos" ADD CONSTRAINT "integracoes_eventos_modified_by_usuarios_id_fk" FOREIGN KEY ("modified_by") REFERENCES "public"."usuarios"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_integracoes_eventos_chave" ON "integracoes_eventos" USING btree ("canal","chave_evento");--> statement-breakpoint
 CREATE INDEX "idx_integracoes_eventos_pendentes" ON "integracoes_eventos" USING btree ("recebido_em") WHERE "integracoes_eventos"."processado_em" IS NULL AND "integracoes_eventos"."is_deleted" = false;--> statement-breakpoint
 CREATE INDEX "idx_integracoes_eventos_ativos" ON "integracoes_eventos" USING btree ("is_deleted");--> statement-breakpoint
-CREATE INDEX "idx_pedidos_vendido_em" ON "pedidos" USING btree ("vendido_em");--> statement-breakpoint
 -- ============================================================================
 -- SEMENTE: usuario de sistema (escrito a mao, nao gerado pelo drizzle-kit)
 --

@@ -1,0 +1,31 @@
+-- ============================================================================
+-- RECADO PARA QUEM ESTA MEXENDO EM `pedidos` (caso 5 da analise de corretude)
+--
+-- Estas colunas sao SUAS. Elas nasceram na `0004` sem querer: quando rodei
+-- `db:generate` para criar a tabela `integracoes_eventos`, o seu `pedidos.ts`
+-- ja declarava `vendido_em` e `custo_na_venda`, e o drizzle empacotou as duas
+-- coisas no mesmo arquivo. A pedido do Paulo, separei (2026-08-10):
+--
+--   0004 -> so `integracoes_eventos` + semente do usuario de sistema
+--   0005 -> so as suas colunas de `pedidos`  <- este arquivo
+--
+-- Tirei tambem do `meta/0004_snapshot.json`, senao o proximo `db:generate`
+-- acharia que as colunas ja estavam migradas e elas sumiriam da cadeia em
+-- silencio. Conferido: gerar de novo propos exatamente estas 3 linhas, e a
+-- cadeia inteira aplica limpa num banco zerado (6/6 via psql).
+--
+-- SE PREFERIR QUE SEJA SUA DE VERDADE: apague este `.sql` e o
+-- `meta/0005_snapshot.json`, tire a entrada de `meta/_journal.json` e rode
+-- `npm run db:generate`. O `pedidos.ts` continua sendo a fonte — as colunas
+-- voltam com o nome que voce quiser. (Se ja aplicou em algum banco, dropar as
+-- colunas antes, senao o ALTER falha.)
+--
+-- ⚠️ UMA COISA QUE EU **NAO** CONSERTEI, PORQUE E DECISAO SUA:
+-- `ADD COLUMN ... NOT NULL` sem DEFAULT falha em tabela que ja tem linhas.
+-- Passa aqui porque `pedidos` esta vazia. Em PRD, com pedidos gravados, esta
+-- migracao **quebra o deploy**. Se as colunas sao mesmo obrigatorias, o
+-- caminho e: adicionar como nullable -> backfill -> `SET NOT NULL`.
+-- ============================================================================
+ALTER TABLE "pedidos" ADD COLUMN "vendido_em" timestamp NOT NULL;--> statement-breakpoint
+ALTER TABLE "pedidos" ADD COLUMN "custo_na_venda" numeric(14, 2) NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_pedidos_vendido_em" ON "pedidos" USING btree ("vendido_em");
