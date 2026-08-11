@@ -23,11 +23,17 @@ import { headers } from "next/headers";
 import { auth } from "./config";
 
 /**
- * Nome do cookie de sessao. Vem de `advanced.cookiePrefix: "mm"` no config —
- * o Better Auth monta `<prefixo>.session_token`.
+ * Nome BASE do cookie de sessao. Vem de `advanced.cookiePrefix: "mm"` no config
+ * — o Better Auth monta `<prefixo>.session_token`.
  *
- * ⚠️ Usado pelo porteiro (`src/proxy.ts`). Mudar o prefixo no config sem mudar
- * aqui faz o porteiro parar de ver a sessao e mandar todo mundo para /login.
+ * ⚠️ EM PRODUCAO O NOME REAL E OUTRO. Sobre HTTPS o Better Auth prefixa com
+ * `__Secure-`, entao o cookie que chega no navegador se chama
+ * `__Secure-mm.session_token`. Quem for comparar nome de cookie precisa aceitar
+ * os DOIS — foi assim que o login quebrou em producao passando em todo teste
+ * local, porque `http://localhost` nao ganha prefixo. Ver `src/proxy.ts`.
+ *
+ * Este modulo nao usa a constante: `lerSessao` delega ao Better Auth, que
+ * resolve o nome sozinho. Ela existe como documentacao do contrato.
  */
 export const COOKIE_SESSAO = "mm.session_token";
 

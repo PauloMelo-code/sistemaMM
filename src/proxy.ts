@@ -21,18 +21,38 @@ import type { NextRequest } from "next/server";
  * Nome do cookie do Better Auth: `<advanced.cookiePrefix>.session_token`, com o
  * prefixo `mm` definido em `src/lib/auth/config.ts`.
  *
- * ⚠️ Nao da para importar de `@/lib/auth/sessao` aqui: aquele modulo puxa a
+ * ⚠️ SAO DOIS NOMES, E IGNORAR O SEGUNDO QUEBRA O LOGIN EM PRODUCAO.
+ *
+ * Sobre HTTPS (ou com `BETTER_AUTH_URL` em `https://`), o Better Auth prefixa o
+ * cookie com `__Secure-` — ver `better-auth/dist/cookies/index.mjs:21`. Ou seja:
+ * em producao o cookie NAO se chama `mm.session_token`, e sim
+ * `__Secure-mm.session_token`.
+ *
+ * Custou um deploy inteiro: o login funcionava (sessao gravada no banco, cookie
+ * no navegador), mas o porteiro procurava so o nome sem prefixo, nao achava, e
+ * mandava para /login — a aplicacao recusando a sessao que ela mesma acabara de
+ * criar. Passou em todos os testes locais porque `http://localhost` nao ganha
+ * prefixo: o defeito so existe onde ha TLS, que e exatamente onde ninguem
+ * testa antes de subir.
+ *
+ * O proprio Better Auth le os dois (`index.mjs:216`, `__Secure-<nome>` primeiro,
+ * depois o cru). Aqui e a mesma regra.
+ *
+ * ⚠️ Nao da para importar de `@/lib/auth/sessao`: aquele modulo puxa a
  * configuracao inteira, que puxa o driver do banco — e este arquivo roda no
- * edge. A constante e duplicada de proposito; se mudar o prefixo, mude nos dois.
+ * edge. As constantes sao duplicadas de proposito; mudou o prefixo la, mude aqui.
  */
 const COOKIE_SESSAO = "mm.session_token";
+const COOKIE_SESSAO_SEGURO = `__Secure-${COOKIE_SESSAO}`;
 
 /** Rotas que existem sem sessao. */
 const PUBLICAS = ["/login"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const temCookie = Boolean(request.cookies.get(COOKIE_SESSAO)?.value);
+  const temCookie = Boolean(
+    request.cookies.get(COOKIE_SESSAO_SEGURO)?.value ?? request.cookies.get(COOKIE_SESSAO)?.value,
+  );
   const ehPublica = PUBLICAS.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 
   if (!temCookie && !ehPublica) {
