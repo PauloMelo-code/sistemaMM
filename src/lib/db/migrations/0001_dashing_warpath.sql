@@ -1,1 +1,27 @@
-ALTER TYPE "public"."status_pedido" ADD VALUE 'cancelado';
+-- ============================================================================
+-- Acrescenta 'cancelado' ao enum status_pedido — mas so em banco que JA existia
+-- sem ele. Em banco virgem o valor ja vem da 0000 e esta linha e no-op.
+--
+-- POR QUE `IF NOT EXISTS`, E POR QUE A 0000 TAMBEM CRIA O VALOR:
+--
+-- O migrator do drizzle envolve TODAS as migracoes pendentes numa UNICA
+-- transacao (drizzle-orm/pg-core/dialect.js: `session.transaction(...)` em volta
+-- do laco). Isso muda o comportamento conforme o estado do banco:
+--
+--   banco incremental -> 1 migracao pendente por vez -> cada uma no seu BEGIN
+--   banco VIRGEM      -> todas juntas no MESMO BEGIN
+--
+-- E o Postgres recusa usar um valor de enum adicionado por ALTER TYPE dentro da
+-- mesma transacao ("unsafe use of new value"). Como a 0002 cria um indice com
+-- `status <> 'cancelado'`, num banco virgem a migracao inteira falhava — e o
+-- `drizzle-kit migrate` saia com codigo 1 SEM imprimir o erro. Sintoma: deploy
+-- em ambiente novo nao criava nada e ninguem sabia por que.
+--
+-- Valor que nasce junto do `CREATE TYPE` nao tem essa restricao: o tipo inteiro
+-- e novo na transacao. Por isso a 0000 ja declara os 4 valores e esta migracao
+-- virou uma rede de seguranca idempotente para os bancos que ficaram no meio.
+--
+-- NAO remova nenhum dos dois lados: a 0000 faz o banco virgem funcionar, esta
+-- aqui faz o banco antigo alcancar. Verificado nos dois caminhos em 2026-08-10.
+-- ============================================================================
+ALTER TYPE "public"."status_pedido" ADD VALUE IF NOT EXISTS 'cancelado';

@@ -4,7 +4,10 @@ CREATE TYPE "public"."canal" AS ENUM('mercado_livre', 'olx', 'whatsapp');--> sta
 CREATE TYPE "public"."status_anuncio" AS ENUM('no_ar', 'negociando', 'pausado');--> statement-breakpoint
 CREATE TYPE "public"."status_pergunta" AS ENUM('pendente', 'respondida');--> statement-breakpoint
 CREATE TYPE "public"."etapa_expedicao" AS ENUM('aguardando_nfe', 'etiqueta', 'embalado', 'coletado');--> statement-breakpoint
-CREATE TYPE "public"."status_pedido" AS ENUM('aguardando_envio', 'em_transporte', 'concluido');--> statement-breakpoint
+-- 'cancelado' nasce AQUI, junto do tipo, e nao so na 0001. Motivo no cabecalho
+-- da 0001: num banco VIRGEM o drizzle roda todas as migracoes pendentes numa
+-- transacao so, e valor adicionado por ALTER TYPE nao pode ser usado nela.
+CREATE TYPE "public"."status_pedido" AS ENUM('aguardando_envio', 'em_transporte', 'concluido', 'cancelado');--> statement-breakpoint
 CREATE TABLE "usuarios" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"nome" text NOT NULL,
