@@ -46,6 +46,39 @@ Diferente de outros projetos, **as 12 telas do painel vivem num arquivo so**:
 - Larguras de coluna do README sao intencionais (`minmax(0,1fr) 52px 88px …`) —
   reproduza; e o que impede a tabela de "dançar".
 
+## Responsividade — obrigatoria, e nao contradiz o pixel-perfect
+
+O handoff nao tem `@media` nenhuma e o `docs/front.md` pede mobile-first: a
+largura minima suportada e **decisao em aberto** (`docs/known-issues.md` 🟡). Ate
+ela sair, vale a regra abaixo — que nao antecipa a decisao, so impede a tela de
+quebrar.
+
+**Fidelidade vale acima do ponto de corte.** Do breakpoint para cima, reproduza
+o handoff exatamente. Abaixo dele, empilhe. Isso nao e "melhorar o design": e o
+mesmo design em uma largura que o handoff nao desenhou.
+
+1. **Nao mexa no shell.** `(painel)/layout.tsx` e `_components/sidebar.tsx` ja
+   empilham e viram faixa horizontal abaixo de `md` — vale para as 12 telas.
+   Nenhuma tela nova precisa (nem deve) resolver isso de novo.
+2. **Resolva so o grid da sua tela.** Empilhe (`grid-cols-1`) abaixo do ponto em
+   que a coluna mais estreita deixa de caber, e restaure o grid do handoff acima
+   (`lg:grid-cols-[1.4fr_1fr]`).
+3. **Calcule o ponto, nao chute.** Largura util = janela − 236px de sidebar −
+   64px de padding do main. Ache a janela em que a coluna mais estreita ainda
+   recebe o minimo legivel (~260px para texto corrido) e use o breakpoint padrao
+   logo acima. Em Perguntas isso deu ~924px → `lg`.
+4. **O `loading.tsx` empilha no MESMO ponto.** Esqueleto que nao acompanha os
+   breakpoints da tela vira a causa do salto de layout que ele existe para
+   evitar — e o defeito so aparece na fracao de segundo do carregamento, onde
+   ninguem topa com ele revisando codigo. Ja aconteceu uma vez.
+5. **Largura cravada precisa de teto.** `w-96` sao 384px e estouram um aparelho
+   de 375px, fazendo a **pagina** rolar de lado. Use `max-w-*`.
+6. **Linha com texto + pill:** `flex-wrap`, para a pill cair inteira na linha de
+   baixo em vez de espremer o dado ou truncar o nome.
+
+Ao terminar, registre em `docs/known-issues.md` o ponto de corte que voce
+escolheu e a conta que levou a ele.
+
 ## Dados
 
 O prototipo usa mock. Na conversao:

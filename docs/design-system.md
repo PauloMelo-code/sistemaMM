@@ -175,6 +175,12 @@ Upload de foto (drag-and-drop).
 5. **Numero de dinheiro sempre em Archivo**, formato pt-BR sem centavos.
 6. **Ambar = alerta.** Se nao for alerta, nao e ambar.
 7. **Largura de coluna de tabela conforme o README** — nao troque por `auto`.
+8. **Grid de tela empilha abaixo do ponto de corte.** O handoff so desenhou
+   desktop; reproduzir o grid fixo sem breakpoint deixa a tela inutilizavel no
+   estreito. Fidelidade vale **acima** do corte. O shell (sidebar e layout do
+   painel) ja resolve o dele — nao refazer. Como escolher o ponto e o que mais
+   verificar (esqueleto, largura cravada, linha com pill): secao
+   "Responsividade" da skill `/importar-tela`.
 
 ## Manutencao
 
