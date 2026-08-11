@@ -11,17 +11,62 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
-### A pausa nos outros canais so funciona no ML — a OLX nao tem executor
+### ⚠️ DECISAO DO ANDERSON: na OLX, "pausar" so existe como APAGAR
+- **Arquivo(s):** `src/lib/integracoes/olx/politica.ts`,
+  `olx/executor-anuncio.ts`, `olx/client.ts`, `src/lib/integracoes/executores.ts`
+- **O fato, conferido na doc oficial** (developers.olx.com.br, 2026-08-10): a API
+  de autoupload tem **`insert` e `delete`, e nada entre os dois**. Nao existe
+  estado pausado. A doc diz literalmente que o anuncio permanece publicado a
+  menos que uma delecao seja enviada.
+- **Por que isso e decisao de negocio, nao de codigo:** a RN-104 manda **pausar**
+  o anuncio nos outros canais quando o item vende. Na OLX, cumprir isso significa
+  **apagar** — e reanunciar depois e um `insert` novo, que perde o id, a posicao
+  e a visibilidade acumulada. E o mesmo perigo do `closed` do ML (que tornei
+  inalcancavel de proposito), com a diferenca de que aqui **nao ha alternativa**:
+  ou apaga, ou deixa no ar a peca ja vendida.
+- **⚠️ A confirmar com o Anderson:** (a) o sistema pode apagar anuncio na OLX
+  automaticamente ao vender? (b) se a venda for cancelada, quem recria o anuncio
+  — e com qual preco? Casa com a RN-120, ja aberta.
+- **Como esta hoje:** implementado e **DESLIGADO por padrao**. So age com
+  `OLX_DELETAR_AO_VENDER=true` (o literal exato; "TRUE", "1" e "sim" nao valem —
+  falha fechada). Sem a variavel, a tarefa fica pendente com `tentativas = 0` e
+  aparece em `aguardandoExecutor`.
+- **O registro do executor e CONDICIONAL, e nao por estilo.** Se ele estivesse
+  sempre registrado e apenas recusasse enquanto a decisao nao vem, a tarefa seria
+  reivindicada, queimaria as cinco tentativas e viraria **esgotada** — e no dia
+  em que a decisao chegasse, o pedido de pausa daquela peca ja estaria morto na
+  fila. Atraso e recuperavel; tarefa esgotada por decisao pendente, nao.
+  A checagem existe **tambem** dentro do executor, como rede de seguranca: acao
+  irreversivel sobre anuncio real do cliente nao depende de um ponto so.
+- **`reativar_anuncio` nao existe na OLX** de proposito: seria um `insert`
+  completo (titulo, corpo, preco, CEP, telefone, ate 20 imagens) — republicar,
+  nao desfazer uma pausa. Depende da RN-120.
+- **A importacao e ASSINCRONA.** `statusCode: 0` significa "a OLX aceitou o
+  pedido", nao "o anuncio saiu do ar" — moderacao acontece depois. Tratamos
+  `statusCode != 0` como falha mesmo com HTTP 200, mas **a confirmacao final
+  exigiria consultar o status da importacao pelo `token`**, o que ainda nao
+  fazemos. Ate la, `anuncios.status = 'pausado'` significa "pedimos", nao
+  "confirmado".
+- **Verificado com OLX falsa** (removida depois): trava desligada -> zero
+  chamadas, tarefa intacta; trava ligada -> um `PUT /autoupload/import` com
+  `{"id":"OLX-777","operation":"delete"}` e o `access_token` decifrado **no
+  corpo** (nao no cabecalho, que e a forma da API deles).
+- **Falta credencial da OLX.** Nao ha fluxo OAuth deles implementado, e nem esta
+  confirmado que a conta da MM tem acesso a API (🔴 acima). O executor le de
+  `integracoes_credenciais` (canal `olx`) e falha com erro claro se nao houver.
+
+### A pausa nos outros canais so funciona no ML — a OLX depende de decisao
 - **Arquivo(s):** `src/lib/integracoes/executores.ts`,
   `src/lib/integracoes/mercado-livre/executor-anuncio.ts`
 - **Situacao (2026-08-10):** o executor do **Mercado Livre** existe e esta
   verificado: `PUT /items/{id}` com `{"status":"paused"}` (endpoint confirmado
   na doc oficial), e `anuncios.status` so muda **depois** da confirmacao do
-  canal. O da **OLX nao existe** — a conta da MM nem tem acesso confirmado a
-  API deles (🔴 proprio, acima).
+  canal. O da **OLX existe mas nasce desligado** — porque la "pausar" so existe
+  como apagar, e isso e decisao do Anderson (entrada acima).
 - **A ironia que importa:** a venda que chega pelo ML gera tarefa para pausar na
-  **OLX** — ou seja, o caso mais comum e justamente o que ainda nao executa. O
-  executor do ML cobre o caminho inverso (vendeu na OLX ou no WhatsApp).
+  **OLX** — ou seja, o caso mais comum e justamente o que depende da decisao
+  pendente. O executor do ML cobre o caminho inverso (vendeu na OLX ou no
+  WhatsApp).
 - **Nao fica escondido:** o resumo do worker traz `aguardandoExecutor` contando
   as tarefas sem dono **em toda passada**, mesmo quando o lote executou tudo o
   que sabia. E elas nao gastam tentativa: a consulta so reivindica par
