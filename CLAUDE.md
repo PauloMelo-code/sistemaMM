@@ -25,9 +25,11 @@ Banco local na porta **5436** (`docker-compose.yml`).
    estoque e SLA. **Obrigatorio** antes de qualquer calculo.
 3. **[design_handoff_sistema_mm/README.md](design_handoff_sistema_mm/README.md)** —
    handoff de design: tokens, grids e o conteudo exato de cada tela.
-4. **[docs/design-system.md](docs/design-system.md)** — **obrigatorio antes de
+4. **[docs/architecture.md](docs/architecture.md)** — como o projeto esta
+   montado: stack, fontes-da-verdade, modelo de dados, invariantes.
+5. **[docs/design-system.md](docs/design-system.md)** — **obrigatorio antes de
    QUALQUER mudanca visual ou componente novo.**
-5. [docs/adr/](docs/adr/) — decisoes de arquitetura (registros imutaveis).
+6. [docs/adr/](docs/adr/) — decisoes de arquitetura (registros imutaveis).
 
 ---
 
@@ -131,14 +133,20 @@ Alem do [docs/definition-of-done.md](docs/definition-of-done.md):
 - [ ] Mexi em schema → `npm run db:generate` e li o SQL gerado?
 - [ ] Achei divergencia ou decisao pendente → registrei no `known-issues.md`?
 
-> **O que os testes cobrem hoje:** so `src/lib/pricing.ts` (12 testes,
-> `node:test`, sem framework). Todo o resto — schema, queries, telas,
-> integracoes — nao tem nada pegando o seu erro depois do fato. Verifique
-> lendo, e diga claramente o que voce **nao** verificou.
+> **O que os testes cobrem hoje** (33, `node:test`, sem framework): so os
+> modulos **puros** — `src/lib/pricing.ts`, `src/lib/sla.ts` e
+> `src/lib/integracoes/envelope.ts`. **Nao cobrem** schema, queries, server
+> actions, telas nem integracao: ali nao ha nada pegando o seu erro depois do
+> fato. Verifique lendo, e diga claramente o que voce **nao** verificou.
 >
-> **O banco ainda nao existe.** A migracao inicial foi gerada e conferida no
-> SQL, mas nunca aplicada (`docker compose up -d` + `npm run db:migrate`).
-> Nao diga que uma query funciona antes disso.
+> **O comportamento do banco tem prova propria**, separada dos testes:
+> `scripts/db/*.sql` exercitam as constraints em transacao e fazem `ROLLBACK`
+> (12 + 5 + 5). Rode as tres **depois de toda migracao nova** — indice unico
+> parcial e FK so falham de verdade quando exercitados.
+>
+> **O banco local esta no ar e migrado** (container `mmsolues-db-1`, porta
+> 5436). Subir: `docker compose up -d`. Zerar: `docker compose down -v`.
+> Isso vale so para o LOCAL — nada foi aplicado em HML ou PRD.
 
 ---
 

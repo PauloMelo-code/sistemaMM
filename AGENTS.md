@@ -17,9 +17,11 @@ design, **nunca** codigo de producao.
    estoque e SLA. Obrigatorio antes de qualquer calculo.
 3. **[design_handoff_sistema_mm/README.md](design_handoff_sistema_mm/README.md)** —
    handoff de design (tokens, grids, conteudo de cada tela).
-4. **[docs/design-system.md](docs/design-system.md)** — obrigatorio antes de
+4. **[docs/architecture.md](docs/architecture.md)** — como o projeto esta
+   montado: stack, fontes-da-verdade, modelo de dados, invariantes.
+5. **[docs/design-system.md](docs/design-system.md)** — obrigatorio antes de
    qualquer mudanca visual.
-5. **[CLAUDE.md](CLAUDE.md)** — regras completas. As secoes **"Invariantes do
+6. **[CLAUDE.md](CLAUDE.md)** — regras completas. As secoes **"Invariantes do
    projeto"** e **"Zonas de cuidado"** valem identicas aqui; nao sao repetidas
    neste arquivo de proposito, para nao existirem dois espelhos divergindo.
 

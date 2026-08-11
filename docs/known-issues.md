@@ -3,8 +3,8 @@
 Lista viva de lacunas, decisoes pendentes e divergencias intencionais.
 Atualizada a cada sync. Itens resolvidos saem daqui.
 
-> Ultima sincronizacao: 2026-08-10 (4a rodada — analise de corretude: concorrencia,
-> integracoes, dinheiro/fiscal e operacao). Analise longa em
+> Ultima sincronizacao: 2026-08-10 (5a rodada — frete, congelamento de venda,
+> type:module e bisect do build). Analise longa em
 > [analise-corretude-2026-08-10.md](analise-corretude-2026-08-10.md).
 
 ---
@@ -183,6 +183,59 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 ---
 
 ## 🟡 Investigar
+
+### O worker retenta sem backoff, e o disparo dele e uma rota HTTP
+- **Arquivo(s):** `src/lib/integracoes/worker.ts`,
+  `src/app/api/integracoes/worker/route.ts`, `src/lib/integracoes/handlers.ts`
+- **Situacao:** o worker drena um lote e volta — nao ha agendador. Quem chama e
+  `POST /api/integracoes/worker?t=<WEBHOOK_SECRET>`. Duas lacunas assumidas:
+  1. **Sem backoff por tempo.** Um evento que falha e tentado de novo na
+     proxima drenagem, sem espera. Backoff exigiria coluna
+     `proxima_tentativa_em` e a decisao de fila junto. Hoje o teto de 5
+     tentativas ja impede o loop infinito; com canal fora do ar, as 5 queimam
+     rapido e o evento vira "esgotado" antes de o canal voltar.
+  2. **Sem lanes de prioridade.** Uma varredura em massa e uma pergunta com SLA
+     de 4h entram na mesma fila, em ordem de chegada.
+- **Por que a rota, e nao um daemon:** onde o worker roda e ADR aberto (fila em
+  Postgres x BullMQ/Redis — decisao do Lucas). Uma rota nao decide isso: da
+  para chamar por cron, curl ou agendador de plataforma. Um `setInterval` ou um
+  BullMQ dentro do codigo ja teriam escolhido no lugar dele.
+- **Segredo compartilhado com o webhook**, de proposito: mesma superficie
+  (endpoint de integracao chamado por maquina). Se a rotina de rotacao separar
+  as duas coisas, ai vale segredo proprio.
+- **Estado hoje:** `HANDLERS` esta **vazio** — sem credencial nao existe o GET
+  na API do canal, e processar sem ele seria deduzir venda do corpo do POST
+  (proibido pela RN-117). A consulta filtra pelos topicos com handler, entao o
+  worker reivindica zero e **nenhum evento gasta tentativa** enquanto isso. Os
+  eventos acumulam e serao processados retroativamente — e para isso que a
+  caixa de entrada existe.
+- **Verificado em 2026-08-10** com handlers falsos (removidos em seguida): lote
+  de 3 → 2 processados e 1 falho; retentativas ate esgotar na 5a; evento
+  esgotado sai da fila com o erro gravado.
+
+### Recado entre agentes: `pedidos.vendido_em` / `custo_na_venda` mudaram de migracao
+- **Arquivo(s):** `src/lib/db/migrations/0005_ancient_gunslinger.sql`,
+  `meta/0004_snapshot.json`
+- **Situacao:** as duas colunas do caso 5 (retrato do pedido) foram parar na
+  `0004` por acidente — o `db:generate` da tabela `integracoes_eventos` pegou o
+  `pedidos.ts` ja alterado e empacotou tudo junto. **Separado em 2026-08-10**:
+  `0004` ficou so com `integracoes_eventos` + a semente do usuario de sistema, e
+  as colunas foram para a `0005`. O snapshot da `0004` foi corrigido junto —
+  sem isso o proximo `db:generate` acharia que ja tinham sido migradas e elas
+  **sumiriam da cadeia em silencio**.
+- **Verificado:** regerar propos exatamente as 3 linhas esperadas (prova de que
+  o snapshot ficou consistente), e as 6 migracoes aplicam limpas num banco
+  zerado via `psql`.
+- **Para quem esta no caso 5:** se quiser a migracao com a sua autoria, apague
+  `0005*.sql` + `meta/0005_snapshot.json`, tire a entrada de `_journal.json` e
+  regere — o `pedidos.ts` continua sendo a fonte. Instrucoes no cabecalho do
+  proprio arquivo.
+- **⚠️ Nao consertado, e decisao sua:** `ADD COLUMN ... NOT NULL` sem DEFAULT
+  falha em tabela com linhas. Passa hoje porque `pedidos` esta vazia; em PRD
+  quebra o deploy. Caminho seguro: nullable -> backfill -> `SET NOT NULL`.
+- **Licao geral:** `db:generate` empacota TUDO que estiver divergente no
+  schema, nao so o que voce mexeu. Com varios agentes no mesmo repo, olhe o SQL
+  gerado antes de aplicar.
 
 ### Reativar registro logicamente excluido pode colidir — tratar na UI
 - **Arquivo(s):** `src/lib/db/schema/usuarios.ts`, `itens.ts` (unicos parciais)
@@ -816,6 +869,11 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
   **nao resolve** — testado; quem contamina o grafo e o cwd do processo.
 - **Nao troque de volta** por `"build": "next build"` achando que e indirecao
   desnecessaria: quebra de novo, e o erro nao aponta para ca.
+- **Reconfirmado de forma independente** em 2026-08-10, rodando `next build`
+  com os dois cwd no mesmo commit: canonico -> exit 0, sem erro; nao-canonico
+  -> exit 1 com `InvariantError: Expected workStore to be initialized`.
+  Nos dois casos o codigo COMPILA — a falha e so na pre-renderizacao, o que
+  reforca a pista de que o problema e identidade de modulo, nao o codigo.
 - **`npm run dev` nao precisa disso** — o dev server nao pre-renderiza, entao
   nao esbarra no invariante. Nao foi "esquecido".
 
@@ -911,13 +969,27 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
 
 ## ⚪ Notas
 
+- **`"type": "module"` no `package.json`** (2026-08-10). Sem ele o Node reparsava
+  cada `.test.ts` como ES module e cuspia `MODULE_TYPELESS_PACKAGE_JSON` a cada
+  execucao. Foi seguro porque o projeto ja era 100% ESM na pratica: zero
+  `require()` / `module.exports`, todos os scripts em `.mjs`, configs com
+  `import`/`export default`. Ciclo completo revalidado depois — typecheck, 33
+  testes, lint, build, `drizzle-kit check`, compliance e as 3 provas de banco.
+- **O banco local esta NO AR e migrado.** Container `mmsolues-db-1` na porta 5436
+  (o Docker sanitiza o nome da pasta: `MMSOLUÇÕES` -> `mmsolues`). Subir com
+  `docker compose up -d`; recomecar do zero com `docker compose down -v`.
+- **As provas de banco rodam com o banco cheio ou vazio** — usam identificadores
+  aleatorios e fazem `ROLLBACK`. Rode as tres depois de toda migracao nova:
+  `scripts/db/prova-constraints.sql` (12), `prova-compra-simultanea.sql` (5) e
+  `prova-congelamento-venda.sql` (5).
 - **Porta 5436** no `docker-compose.yml` — escolhida para nao colidir com
   espaco-flow (5433), orbital hub (5434) e bahflash (5435) na mesma maquina.
 - **Dados da empresa para NF-e e rodape do site** (razao social, CNPJ, endereco,
   responsavel) estao no fim do README do handoff — nao redigitar de memoria.
-- **O doc de arquitetura ainda nao existe.** Com zero linha de codigo seria
-  ficcao; nasce via `/repo-docs-sync` depois do scaffold. Ate la, o que esta
-  decidido esta em `CLAUDE.md` e o que falta decidir esta no bloco 🟡 acima.
+- **O doc de arquitetura ainda nao existe.** Ja ha codigo (8 tabelas, rotas,
+  modulos puros com teste), entao agora ele PODE ser escrito de verdade — vale
+  gerar via `/repo-docs-sync`. Ate la, o que esta decidido esta em `CLAUDE.md`
+  e o que falta decidir esta no bloco 🟡 acima.
 - **Contexto contratual:** projeto da agencia Orbital para a MM Solucoes. Escopo
   contratado inclui treinamento do operador — a trilha de 5 semanas na tela
   Equipe faz parte da entrega, nao e enfeite.
