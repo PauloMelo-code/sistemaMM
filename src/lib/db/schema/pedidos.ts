@@ -98,6 +98,24 @@ export const pedidos = pgTable(
     // fechar na subtracao, ha deducao que o sistema nao conhece — sinalizar na
     // tela, nao "ajustar" o numero (ver known-issues).
     liquido: numeric("liquido", { precision: 14, scale: 2 }).notNull(),
+    // A taxa que o CANAL informou, ao lado da que NOS calculamos em `taxa`.
+    // Duas colunas de proposito: `taxa` sai da RN-102 (14% no ML, nao
+    // confirmados) e esta sai do payload do pedido. Enquanto forem so uma, uma
+    // divergencia entre o painel e o extrato do ML e indistinguivel de acerto.
+    // Nula quando o canal nao informa (venda direta) ou quando a venda foi
+    // lancada a mao.
+    taxa_origem: numeric("taxa_origem", { precision: 14, scale: 2 }),
+
+    // Quando alguem (ou o job de reconciliacao) confirmou que os nossos numeros
+    // batem com o que o canal repassou.
+    //
+    // NULO E O ESTADO NORMAL de um pedido recem-criado por integracao: os
+    // valores foram calculados com a taxa que SUPOMOS e com a base de comissao
+    // ainda nao confirmada pelo Anderson (RN-108 🔴). Deixar nulo transforma
+    // essa incerteza em estado visivel na tela em vez de erro silencioso no
+    // relatorio — o pedido entra como "a conferir", nao como verdade.
+    conciliado_em: timestamp("conciliado_em"),
+
     nfe_emitida: boolean("nfe_emitida").notNull().default(false),
     // Chave de 44 digitos da NF-e. Emissor fiscal ainda nao definido
     // (docs/known-issues.md) — nulo ate a integracao existir.
