@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { sair } from "@/lib/actions/auth";
+import { temPermissao, type Recurso } from "@/lib/auth/rbac";
+import type { Papel } from "@/lib/auth/sessao";
+
 /**
  * Sidebar do painel — as 12 telas do handoff, na ordem do prototipo.
  *
@@ -16,29 +20,40 @@ import { usePathname } from "next/navigation";
 interface ItemNav {
   rotulo: string;
   href: string | null;
+  /**
+   * Recurso do RBAC exigido para o item APARECER.
+   *
+   * Esconder e correto aqui, e nao "desabilitar": um link que o operador nunca
+   * vai poder abrir e ruido permanente no menu que ele usa o dia inteiro. A
+   * pagina de destino continua barrando por conta propria — menu escondido
+   * nunca e a unica protecao.
+   */
+  exige?: Recurso;
 }
 
 const ITENS: ItemNav[] = [
-  { rotulo: "Visão geral", href: null },
-  { rotulo: "Anúncios", href: null },
+  { rotulo: "Visão geral", href: "/" },
+  { rotulo: "Anúncios", href: "/anuncios" },
   { rotulo: "Site", href: null },
   { rotulo: "Perguntas", href: "/perguntas" },
-  { rotulo: "Pedidos", href: null },
+  { rotulo: "Pedidos", href: "/pedidos" },
   { rotulo: "Expedição", href: null },
-  { rotulo: "Estoque", href: null },
-  { rotulo: "Lotes", href: null },
+  { rotulo: "Estoque", href: "/estoque" },
+  { rotulo: "Lotes", href: "/lotes", exige: "lotes" },
   { rotulo: "Calculadora de preço", href: null },
   { rotulo: "Relatórios", href: null },
   { rotulo: "Equipe", href: null },
-  { rotulo: "Integrações", href: null },
+  { rotulo: "Integrações", href: "/integracoes" },
 ];
 
 interface SidebarProps {
   /** Perguntas pendentes — o badge âmbar. Contado no servidor. */
   perguntasPendentes: number;
+  /** Quem está logado. Mostrar o papel evita operar achando que é outro. */
+  sessao: { nome: string; papel: Papel };
 }
 
-export function Sidebar({ perguntasPendentes }: SidebarProps) {
+export function Sidebar({ perguntasPendentes, sessao }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -55,7 +70,9 @@ export function Sidebar({ perguntasPendentes }: SidebarProps) {
         aria-label="Telas do painel"
         className="flex flex-row gap-1 overflow-x-auto px-3 py-2 text-sm md:flex-col md:gap-0.5 md:py-4"
       >
-        {ITENS.map((item) => {
+        {ITENS.filter(
+          (item) => item.exige === undefined || temPermissao(sessao.papel, item.exige, "ler"),
+        ).map((item) => {
           const ativo = item.href !== null && pathname === item.href;
 
           const conteudo = (
@@ -101,6 +118,24 @@ export function Sidebar({ perguntasPendentes }: SidebarProps) {
         })}
       </nav>
 
+      {/* Quem está logado. Fica acima dos canais porque, num sistema cuja regra
+          central é sigilo de custo (RN-107), saber com qual papel se está
+          operando não é enfeite: o operador e o dono veem telas diferentes. */}
+      <div className="mt-auto flex flex-col gap-2 border-t border-white/14 px-[22px] pt-4 text-xs">
+        <span className="truncate font-medium text-white">{sessao.nome}</span>
+        <span className="text-[10px] uppercase tracking-[.14em] text-on-navy-2">
+          {sessao.papel}
+        </span>
+        <form action={sair}>
+          <button
+            type="submit"
+            className="rounded-button border border-white/20 px-3 py-1.5 text-xs text-on-navy hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning"
+          >
+            Sair
+          </button>
+        </form>
+      </div>
+
       {/* Rodapé de canais: os status são FIXOS por enquanto — não existe tabela
           de integrações nem conexão real com ML/OLX/WhatsApp (known-issues 🔴).
           Repetem o handoff para não deixar buraco no layout; ligar aos dados
@@ -109,7 +144,7 @@ export function Sidebar({ perguntasPendentes }: SidebarProps) {
           Escondido abaixo de `md`: é o elemento de menor valor da sidebar (status
           decorativo, hoje nem real) e empilhado no topo empurraria a fila —
           a tarefa da tela — para baixo da dobra no celular. */}
-      <div className="mt-auto hidden flex-col gap-2.5 border-t border-white/14 px-[22px] pt-4 text-xs md:flex">
+      <div className="hidden flex-col gap-2.5 border-t border-white/14 px-[22px] pt-4 text-xs md:flex">
         <span className="text-[10px] uppercase tracking-[.22em] text-on-navy-2">
           Canais conectados
         </span>

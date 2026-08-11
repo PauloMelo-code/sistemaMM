@@ -16,16 +16,32 @@
  * site publico, quando entrar, vira `(site)` ao lado — decisao ainda registrada
  * como recomendacao em docs/known-issues.md, nao como ADR.
  */
+import { redirect } from "next/navigation";
+
 import { contarPerguntasPendentes } from "@/lib/actions/perguntas";
+import { lerSessao } from "@/lib/auth/sessao";
 
 import { Sidebar } from "./_components/sidebar";
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
+  /**
+   * ESTA e a checagem que vale. O middleware so olha se EXISTE cookie — ele roda
+   * no edge e nao alcanca o banco, entao um cookie forjado passa por ele.
+   * `lerSessao()` confere o hash do token, a expiracao e se o usuario continua
+   * ativo, no servidor.
+   *
+   * Fica no LAYOUT, e nao em cada `page.tsx`, de proposito: pagina nova nasce
+   * protegida sem ninguem lembrar de nada. Esquecer esta linha numa tela seria
+   * abrir o painel inteiro por omissao.
+   */
+  const sessao = await lerSessao();
+  if (!sessao) redirect("/login");
+
   const perguntasPendentes = await contarPerguntasPendentes();
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <Sidebar perguntasPendentes={perguntasPendentes} />
+      <Sidebar perguntasPendentes={perguntasPendentes} sessao={sessao} />
       <main className="flex min-w-0 flex-1 flex-col gap-5 px-4 py-5 md:gap-6 md:px-8 md:py-7">
         {children}
       </main>
