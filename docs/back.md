@@ -305,15 +305,52 @@ CREATE UNIQUE INDEX ... WHERE status <> 'cancelado';
 O sintoma engana: o `drizzle-kit migrate` fica girando em "applying migrations"
 e nao imprime o erro. Se travar ali, rode o SQL na mao no psql para ver a causa.
 
-**Como fazer:** duas migracoes separadas.
+**Como fazer, passo 1 — duas migracoes separadas.**
 1. Comente o uso do valor novo (indice, default, check) no schema.
 2. `npm run db:generate` + `npm run db:migrate` — so o `ALTER TYPE`.
 3. Descomente o uso.
 4. `npm run db:generate` + `npm run db:migrate` — agora o valor ja esta commitado.
 
 Vale para indice parcial, `DEFAULT`, `CHECK` e qualquer expressao que cite o
-valor novo. Exemplo real no historico: `0001` (enum `cancelado`) e `0002`
-(indice `idx_pedidos_item_ativo`), da RN-112.
+valor novo.
+
+**Passo 2 — e este e o que quase todo mundo esquece: fazer o valor nascer
+tambem no `CREATE TYPE` da migracao inicial.**
+
+Separar em duas migracoes resolve so o banco INCREMENTAL. Num banco **virgem**
+nao resolve nada, porque o migrator do drizzle envolve TODAS as migracoes
+pendentes numa **unica transacao**
+(`drizzle-orm/pg-core/dialect.js`: `session.transaction(...)` em volta do laco):
+
+```
+banco incremental -> 1 pendente por vez  -> cada migracao no seu BEGIN  -> passa
+banco VIRGEM      -> todas juntas        -> mesmo BEGIN                 -> QUEBRA
+```
+
+E o `drizzle-kit migrate` sai com **codigo 1 sem imprimir o erro**. Como HML e
+PRD comecam vazios e o dev local ja passou dessa fase, o defeito so aparece no
+primeiro deploy. Foi exatamente o que aconteceu com `cancelado` (RN-112).
+
+Entao, depois de aplicar a mudanca no ambiente incremental, **edite o
+`CREATE TYPE` da migracao `0000`** para ja incluir o valor novo, e troque o
+`ALTER TYPE` da migracao intermediaria por `ADD VALUE IF NOT EXISTS`. Os dois
+lados passam a funcionar: o virgem pega o valor do `CREATE TYPE` (que nao sofre
+a restricao, porque o tipo inteiro e novo na transacao) e o antigo pega do
+`ALTER`, que vira no-op.
+
+**Sempre teste os dois caminhos** — o incremental nao prova o virgem:
+
+```bash
+docker exec mmsolues-db-1 psql -U dev -d postgres -c "DROP DATABASE IF EXISTS teste_virgem;" -c "CREATE DATABASE teste_virgem;"
+DATABASE_URL="postgres://dev:dev@localhost:5436/teste_virgem" npm run db:migrate
+```
+
+Confira o **exit code** (o pipe para `tail` mascara: use `$?` direto) e conte as
+tabelas no banco. Depois derrube o banco de teste.
+
+> Para ver a excecao que o `drizzle-kit` engole, chame o migrator do
+> `drizzle-orm` direto num script e imprima `e.cause` — foi assim que a causa
+> apareceu.
 
 ### Migracao gerada e nao aplicada pode ser descartada
 

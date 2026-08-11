@@ -11,27 +11,6 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
-### `drizzle-kit migrate` nao consegue subir um banco VIRGEM — e o deploy depende disso
-- **Arquivo(s):** `package.json` (`db:migrate`), `.github/workflows/deploy.yml`
-- **Situacao:** contra um banco que **ja tem** o schema `drizzle` de controle, o
-  `npm run db:migrate` funciona e sai com codigo 0. Contra um banco **recem
-  criado**, ele imprime "applying migrations...", **sai com codigo 1 sem
-  mensagem nenhuma e nao aplica nada** — zero tabelas, zero linhas em
-  `drizzle.__drizzle_migrations`. Reproduzido em 2026-08-10 com
-  `CREATE DATABASE` + `DATABASE_URL` apontado para ele.
-- **Nao e o SQL:** os mesmos 5 arquivos aplicados em ordem com
-  `psql -v ON_ERROR_STOP=1` sobem limpos num banco virgem (5/5, incluindo a
-  semente do usuario de sistema). Tambem **nao** e a semente escrita a mao: o
-  teste foi refeito com o bloco removido e a falha e identica. Tambem nao e o
-  caso do caminho (testado pelo `Desktop` canonico, mesma falha).
-- **Por que importa:** HML e PRD comecam com banco vazio. Do jeito que esta, o
-  primeiro deploy **nao cria o schema** e falha sem dizer por que. Em dev
-  ninguem percebe, porque o banco local ja passou dessa fase.
-- **Acao sugerida:** investigar a versao do `drizzle-kit` (o `node -p` nem
-  consegue ler o `package.json` dela — `exports` nao expoe o subpath). Enquanto
-  nao resolver, o bootstrap de ambiente novo tem caminho manual comprovado:
-  aplicar os arquivos de `src/lib/db/migrations/*.sql` em ordem via `psql`.
-
 ### Nao existe autenticacao — e o RBAC da RN-107 depende dela
 - **Arquivo(s):** `src/lib/` (nao ha `auth/`)
 - **Situacao:** a tabela `usuarios` existe com os 3 papeis, mas nao ha sessao,
@@ -184,6 +163,64 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🟡 Investigar
 
+### OAuth do ML: pronto e verificado, mas so destrava com o app registrado
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/oauth.ts`,
+  `src/app/api/integracoes/oauth/mercado-livre/{iniciar,callback}/route.ts`
+- **Como conectar** (uma vez, pelo navegador):
+  `https://SEU-DOMINIO/api/integracoes/oauth/mercado-livre/iniciar?t=$WEBHOOK_SECRET`
+- **Verificado em 2026-08-10** contra um ML falso que validava PKCE de verdade
+  (removido depois): `/iniciar` sem segredo da 404; a URL de autorizacao sai com
+  `response_type`, `state`, `code_challenge` e `S256`; **callback com `state`
+  forjado e recusado**; callback sem cookie e recusado; o fluxo legitimo grava a
+  credencial **cifrada** (`access_token` nao contem o valor em claro); e
+  reautorizar faz a credencial anterior sair por **exclusao logica**, mantendo
+  uma unica ativa pelo indice parcial.
+- **⚠️ O app precisa ser registrado com PKCE ATIVO.** E opcao no portal do ML e o
+  codigo sempre manda `code_verifier`. Se o app for criado sem PKCE, a troca
+  falha — a mensagem de `TrocaDeTokenError` ja diz isso, para a falha se
+  explicar sozinha.
+- **⚠️ `ML_REDIRECT_URI` tem que ser identico ao cadastrado**, sem parametro
+  grudado: o ML compara a URL inteira. O que se quer levar vai no `state`.
+- **O segredo na rota `/iniciar` e provisorio.** E porteiro de emergencia porque
+  nao ha login (🔴): sem ele, qualquer um dispara o fluxo, conecta a PROPRIA
+  conta do ML e substitui a credencial da MM (so ha uma ativa por canal). Quando
+  a autenticacao existir, isto vira "so administrador" e o `?t=` sai.
+- **O estado do fluxo vive em cookie cifrado**, nao em tabela — `sameSite=lax`
+  de proposito: com `strict` o navegador nao manda o cookie na volta do ML
+  (navegacao vinda de outro site) e o fluxo morre sem explicacao.
+
+### Cliente do ML: o que ficou pronto, e as tres lacunas assumidas
+- **Arquivo(s):** `src/lib/integracoes/cofre.ts`,
+  `src/lib/integracoes/mercado-livre/{token,client,politica}.ts`,
+  `src/lib/db/schema/integracoes-credenciais.ts`
+- **Pronto e verificado** (2026-08-10, contra um ML falso local, removido depois):
+  token vencido renova e refaz a chamada; **5 chamadas simultaneas com token
+  vencido produziram UMA unica troca** (advisory lock + reconferencia dentro do
+  lock); 429 respeita `Retry-After` e pausa o portao inteiro; 404 nao repete.
+- **Lacuna 1 — a chave de cifragem nao gira.** `CREDENCIAIS_KEY` (AES-256-GCM)
+  e lida do ambiente; nao ha procedimento de rotacao nem recifragem do que ja
+  esta gravado. O pacote tem prefixo `v1.` justamente para permitir isso depois.
+  **Quem guarda a chave em producao ainda nao foi definido** — se ela ficar no
+  mesmo lugar do dump, a cifragem nao protege de nada.
+- **Lacuna 2 — a pausa do 429 vale por PROCESSO.** O estado do portao e memoria
+  do processo. Com mais de uma instancia da aplicacao, cada uma aprende o 429
+  por conta propria. Coordenar exigiria estado compartilhado (tabela ou Redis) —
+  casa com o ADR de fila.
+- **Lacuna 3 — nao existe renovacao proativa por job.** Hoje o token so e
+  renovado quando alguem chama a API e ele esta dentro da margem de 20%. Se
+  ninguem chamar por muito tempo, a renovacao acontece na primeira chamada
+  depois — que e o caminho mais lento justo quando ha pressa. A analise pede
+  job proativo + alarme quando `expira_em` passa sem renovacao.
+- **Nao construido de proposito:** o fluxo OAuth de autorizacao (URL de
+  consentimento + rota de callback). Exige o redirect URI registrado no portal
+  do ML, que nao existe. Ate la a primeira credencial entra por SQL manual, com
+  os tokens passados por `cifrar()`.
+- **⚠️ Invariante novo:** `chamarML()` e o **portao unico**. Ninguem chama
+  `fetch` na API do ML fora de `mercado-livre/client.ts` — mesma disciplina do
+  `pricing.ts` com dinheiro. O 429 e do app inteiro, nao da chamada: com varios
+  `fetch` soltos, cada pedaco do codigo descobre o bloqueio sozinho e continua
+  batendo.
+
 ### O worker retenta sem backoff, e o disparo dele e uma rota HTTP
 - **Arquivo(s):** `src/lib/integracoes/worker.ts`,
   `src/app/api/integracoes/worker/route.ts`, `src/lib/integracoes/handlers.ts`
@@ -301,10 +338,11 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 ### Tabelas que as regras ja exigem e ainda nao existem
 - **Situacao:** o scaffold criou 7 tabelas (usuarios, lotes, itens, anuncios,
   perguntas, pedidos, auditoria). Faltam, ja previstas nas regras:
-  - `itens_fotos` + coluna `exibir_no_site` — RN-109 (item so vai ao site com
-    foto e com o toggle ligado);
+  - ~~`itens_fotos` + coluna `exibir_no_site`~~ — **criadas em 2026-08-10**
+    (migracao `0007`), junto com a integracao do MinIO;
   - `site_leads` — RN-111 (formulario "Receba os novos lotes").
-- **Acao sugerida:** criar com `/criar-tabela` quando a tela Site/CMS entrar.
+- **Acao sugerida:** criar `site_leads` com `/criar-tabela` quando a tela
+  Site/CMS entrar.
 
 ### Pedido cancelado nao tem estado — e vira soft delete
 - **Arquivo(s):** `src/lib/db/schema/pedidos.ts`
@@ -369,13 +407,49 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 - **Acao sugerida:** confirmar e registrar em `docs/adr/`. Nao esta decidido —
   este doc so registra a recomendacao.
 
-### Onde ficam as fotos dos produtos
-- **Modulo:** Site/CMS, Estoque
-- **Situacao:** o CMS tem upload por drag-and-drop (principal + 3 miniaturas) e o
-  site publico exibe foto em card 190px e hero. Nao ha definicao de storage
-  (S3, MinIO, disco da VPS) nem de pipeline de compressao.
-- **Por que importa:** foto e o que vende equipamento usado; e o volume cresce a
-  cada lote arrematado.
+### Fotos: storage RESOLVIDO (MinIO) — falta o pipeline de compressao
+- **Arquivo(s):** `src/lib/storage/`, `src/lib/actions/fotos.ts`,
+  `src/app/api/fotos/`, `src/lib/db/schema/itens-fotos.ts`
+- **Resolvido em 2026-08-10:** as fotos moram no **MinIO**, em bucket de leitura
+  anonima. A escolha do bucket publico nao e atalho: o Mercado Livre publica a
+  imagem **baixando da URL** que informamos, e URL assinada expira — o anuncio
+  ficaria com foto quebrada dias depois. Vale igual para o cache do site.
+  A ESCRITA continua exigindo chave (provado: PUT anonimo responde 403).
+  Sem dependencia nova — a assinatura SigV4 e `node:crypto`, travada por vetores
+  oficiais da AWS.
+- **O que ainda FALTA — ⚠️ decisao/execucao:**
+  1. **Nao ha compressao nem redimensionamento.** O arquivo vai para o bucket
+     exatamente como saiu da camera. Uma foto de celular moderna tem 4–8 MB, e a
+     vitrine serve isso num card de 190px: o visitante de 4G baixa dezenas de MB
+     numa pagina. O `next/image` reduz o que ele mesmo serve, mas nao muda o que
+     esta guardado nem o que o ML baixa. Resolver exige decidir entre `sharp`
+     (dependencia nova, ~10 MB) ou a API de imagem do proprio Next.
+  2. **Nao existe limpeza de objeto orfao.** A exclusao de foto e logica e o
+     arquivo FICA no bucket de proposito (permite desfazer engano). Uma falha
+     entre o upload e o INSERT tambem deixa objeto sem linha. Nenhum dos dois
+     incomoda com o volume de hoje; vira problema com anos de operacao.
+  3. **O bucket precisa existir e ter a politica aplicada** em cada ambiente —
+     nao e criado pela aplicacao. Ver o passo a passo no fim do
+     [architecture.md](architecture.md) §12.
+
+### ⚠️ O upload de foto nasce sem autenticacao — e grava no nosso storage
+- **Arquivo(s):** `src/app/api/fotos/route.ts`, `src/lib/actions/fotos.ts`
+- **Situacao:** `POST /api/fotos` esta tao aberto quanto o resto do painel, pelo
+  mesmo motivo (nao existe autenticacao — pendencia 🔴 acima). So que aqui a
+  consequencia e diferente: as outras telas expoem leitura, esta **grava
+  arquivo** num bucket de leitura publica, servido pelo nosso dominio.
+- **O que ja limita o dano:** o tipo e conferido pelos BYTES (nao pelo
+  `content-type` nem pela extensao), ha teto de 10 MB, teto de 12 fotos por item,
+  exigencia de item existente e o caminho no bucket e gerado pelo servidor — o
+  nome enviado nunca vira caminho. Nada disso impede alguem de subir 12 fotos
+  validas em cada item.
+- **Mitigacao para producao HOJE:** ligar o **Basic Auth do EasyPanel** no
+  dominio do painel, deixando so o site publico sem ele. E configuracao de
+  borda, zero codigo, e some sozinha quando a autenticacao existir.
+- **Acao sugerida:** ao implementar a sessao, o unico ponto a mudar e
+  `autorEdicao()` em `src/lib/actions/fotos.ts` — que hoje assina como usuario de
+  sistema e, por isso, **suja a trilha**: nao da para distinguir o que o Anderson
+  subiu do que o robo gravou.
 
 ### Padrao de SKU e endereçamento do galpao
 - **Modulo:** Estoque, Expedicao
@@ -820,6 +894,32 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
 ---
 
 ## 🟢 Intencional (nao "corrigir" sem perguntar)
+
+### `drizzle-kit migrate` em banco virgem — RESOLVIDO (era o enum `cancelado`)
+- **Arquivo(s):** `src/lib/db/migrations/0000_far_loners.sql`,
+  `0001_dashing_warpath.sql`
+- **Causa (confirmada no fonte do drizzle, nao por hipotese):** o migrator
+  envolve **todas** as migracoes pendentes numa **unica transacao**
+  (`drizzle-orm/pg-core/dialect.js`, `session.transaction(...)` em volta do
+  laco). Num banco incremental so ha uma pendente por vez, entao cada migracao
+  cai no seu proprio `BEGIN` e tudo passa. Num banco **virgem** as 8 entram
+  juntas — e a `0002` usava `status <> 'cancelado'`, valor que a `0001` tinha
+  acabado de adicionar por `ALTER TYPE` na MESMA transacao. O Postgres recusa
+  (`unsafe use of new value`), e o `drizzle-kit` saia com codigo 1 **sem
+  imprimir o erro**.
+- **Correcao:** `'cancelado'` passou a nascer no `CREATE TYPE` da `0000` (valor
+  criado junto do tipo nao sofre a restricao — o tipo inteiro e novo na
+  transacao), e a `0001` virou `ADD VALUE IF NOT EXISTS`, que e no-op nos dois
+  caminhos. Os dois lados sao necessarios: a `0000` faz o banco virgem
+  funcionar, a `0001` faz o banco que ficou no meio alcancar.
+- **Verificado em 2026-08-10, nos dois caminhos:** banco virgem sobe do zero
+  (exit 0, 10 tabelas, 8 migracoes, enum com os 4 valores, usuario de sistema
+  semeado) e o banco local incremental nao re-executa nada
+  (`drizzle-kit check` = "Everything's fine").
+- **Licao que ficou em `back.md`:** dividir em duas migracoes resolve so o banco
+  incremental. **O caminho virgem tem que ser testado a parte** — e o unico que
+  HML e PRD vao percorrer. O `npm run db:migrate` num banco descartavel virou
+  passo obrigatorio ao mexer em enum.
 
 ### O segredo do webhook viaja na URL, e a chave do evento e hash do corpo
 - **Arquivo(s):** `src/app/api/integracoes/webhook/[canal]/route.ts`,
