@@ -18,7 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { itens } from "./itens";
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 
 export const itensFotos = pgTable(
   "itens_fotos",
@@ -57,7 +57,7 @@ export const itensFotos = pgTable(
     modified_by: uuid("modified_by")
       .notNull()
       // FK com RESTRICT — NUNCA cascade em dado critico
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     /**

@@ -18,6 +18,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "better-auth": "^1.6.26",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.0",
     "pg": "^8.23.0",

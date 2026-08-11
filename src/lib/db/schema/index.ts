@@ -4,6 +4,11 @@
  *
  * Ordem = dependencia de FK: lotes -> itens -> anuncios/perguntas/pedidos.
  */
+// Identidade primeiro: `user` e alvo das FKs de `modified_by` de todas as
+// tabelas abaixo.
+export * from "./auth";
+// Aposentadas (substituidas por ./auth em 2026-08-11). Continuam exportadas
+// porque a tabela continua existindo no banco — a regra da casa proibe DROP.
 export * from "./usuarios";
 export * from "./usuarios-sessoes";
 export * from "./lotes";

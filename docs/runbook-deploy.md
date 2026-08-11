@@ -103,6 +103,8 @@ cat > .env <<'FIM'
 DATABASE_URL=postgres://usuario:senha@localhost:5432/mm_solucoes
 WEBHOOK_SECRET=<openssl rand -hex 32>
 CREDENCIAIS_KEY=<openssl rand -hex 32>
+BETTER_AUTH_SECRET=<openssl rand -base64 32>
+BETTER_AUTH_URL=https://painel.seu-dominio.com.br
 MINIO_ENDPOINT=http://minio:9000
 MINIO_PUBLIC_URL=https://fotos.seu-dominio.com.br
 MINIO_ACCESS_KEY=
@@ -113,7 +115,13 @@ FIM
 chmod 600 .env
 ```
 
-Tres armadilhas:
+Quatro armadilhas:
+
+- **`BETTER_AUTH_SECRET` assina cookie e token de sessao.** Trocar o valor
+  invalida todas as sessoes abertas — que e o botao de emergencia se algo
+  vazar. **`BETTER_AUTH_URL` precisa ser a URL PUBLICA**: sem ela a biblioteca
+  deduz a origem do cabecalho, e atras de proxy reverso isso vira o host
+  interno — a checagem de origem passa a recusar o login com "invalid origin".
 
 - **`MINIO_PUBLIC_URL` e lida no BUILD** (`next.config.ts` monta
   `images.remotePatterns` a partir dela). Ausente, a funcao devolve `[]` **em
@@ -147,34 +155,31 @@ curl -fsS http://127.0.0.1:3000/login | head -c 200
 
 ---
 
-## 6. Criar o primeiro usuario ⚠️
+## 6. Criar o primeiro usuario
 
-**Nao existe caminho suportado para isto.** A unica linha semeada em `usuarios`
-e a migracao `0004`, que cria o **robo das integracoes** com `ativo = false` e
-sem senha — de proposito, para nunca virar conta de acesso.
-
-`scripts/definir-senha.mjs` faz **UPDATE**, nao INSERT: se o e-mail nao existir,
-ele sai com erro. Nao ha tela de Equipe.
-
-Interino, no psql da VPS:
-
-```sql
-INSERT INTO usuarios (nome, email, papel, ativo, modified_by)
-VALUES ('Anderson', 'anderson@mmsolucoes.com.br', 'administrador', true,
-        '00000000-0000-0000-0000-000000000001');
-```
-
-E so entao, **no terminal da VPS** (a senha e pedida oculta e nunca vira
-argumento de linha de comando):
+**No terminal da VPS.** A senha e pedida oculta e nunca vira argumento de linha
+de comando (argumento fica no `history`, no `ps` e no log):
 
 ```bash
-node scripts/definir-senha.mjs anderson@mmsolucoes.com.br
+node scripts/criar-usuario.mjs anderson@mmsolucoes.com.br "Anderson" administrador
+node scripts/criar-usuario.mjs operador@mmsolucoes.com.br "Operador" operador
 ```
 
-> `papel` errado neste INSERT fura a RN-107 em silencio — o operador passa a ver
-> custo. Confira a linha depois de inserir.
+Sem nome e papel, o mesmo comando so **troca a senha** de quem ja existe:
+
+```bash
+node scripts/criar-usuario.mjs anderson@mmsolucoes.com.br
+```
+
+Trocar a senha **encerra todas as sessoes abertas** daquela pessoa, na mesma
+transacao — que e o comportamento certo quando a troca acontece por suspeita de
+acesso indevido.
+
+> Este script e o **unico** caminho de cadastro: `disableSignUp: true` fecha a
+> rota publica de registro do Better Auth. Se ela ficasse aberta, qualquer um
+> criaria conta (papel `operador`, `ativo` true) e entraria no painel.
 >
-> Este passo deixa de existir quando o cadastro de usuario entrar.
+> `papel` errado aqui fura a RN-107 em silencio — o operador passa a ver custo.
 
 ---
 

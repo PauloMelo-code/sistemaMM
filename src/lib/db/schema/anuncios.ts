@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { itens } from "./itens";
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 
 /**
  * Canal de venda — enum COMPARTILHADO por anuncios, perguntas e pedidos.
@@ -53,7 +53,7 @@ export const anuncios = pgTable(
     is_deleted: boolean("is_deleted").notNull().default(false),
     modified_by: uuid("modified_by")
       .notNull()
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     // "Um item pode ter UM anuncio em cada canal" (cabecalho deste arquivo)

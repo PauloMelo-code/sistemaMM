@@ -19,7 +19,7 @@ import {
   pgTable, uuid, text, jsonb, integer, boolean, timestamp, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 import { canalEnum } from "./anuncios"; // enum de canal compartilhado (um tipo so no Postgres)
 
 export const integracoesEventos = pgTable(
@@ -65,7 +65,7 @@ export const integracoesEventos = pgTable(
     modified_by: uuid("modified_by")
       .notNull()
       // FK com RESTRICT — NUNCA cascade em dado critico
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     /**

@@ -78,6 +78,13 @@
       "when": 1786419337154,
       "tag": "0010_curvy_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786465527406,
+      "tag": "0011_wealthy_calypso",
+      "breakpoints": true
     }
   ]
 }

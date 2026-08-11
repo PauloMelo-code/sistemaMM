@@ -11,6 +11,63 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
+### Auditoria de producao 2026-08-11 — o que impede subir, em ordem
+Seis frentes varreram o repositorio e cada bloqueio passou por um cetico que
+tentou refuta-lo lendo o codigo. O que sobreviveu:
+
+- **✅ CORRIGIDO — 52 arquivos estavam fora do git.** O deploy e
+  `git reset --hard origin/develop`: o que subiria era o painel **sem
+  autenticacao, sem `proxy.ts`, sem tela de login**, com o banco parando na
+  migracao 0008. Commitado em 7 commits por area.
+- **✅ CORRIGIDO — o CI nunca ficou verde, nem uma vez.**
+  `src/lib/db/index.ts:13-20` valida `DATABASE_URL` na avaliacao do modulo e o
+  `next build` avalia toda rota para coletar page data. O passo Build nao tinha
+  bloco `env:`. Como `deploy-hml` e `deploy-prd` tem `needs: ci`, **nenhum
+  deploy jamais executou**. Reproduzido nos dois sentidos.
+- **✅ CORRIGIDO — `ecosystem.config.js` nao existia** e o deploy termina em
+  `pm2 ... ecosystem.config.js`. Como o passo anterior e `db:migrate`, o deploy
+  aplicava a migracao e so entao morria: banco novo, aplicacao velha no ar.
+- **✅ CORRIGIDO — ninguem conseguia criar o primeiro usuario.** Ver a entrada
+  do Better Auth.
+- **🔴 ABERTO — nada agenda o worker.** Varredura de cron, `setInterval` e
+  GitHub Actions: zero. A venda chega do ML, entra em `integracoes_eventos` e
+  fica la para sempre — o pedido nao e registrado, o item nao baixa do estoque e
+  **o anuncio da OLX continua no ar**. Toda a RN-104 deixa de acontecer, com o
+  codigo dela pronto e testado. Cron provisorio no runbook.
+- **🔴 ABERTO — o painel nao escreve nada.** A unica action de escrita e
+  login/logout. Nenhum codigo cria lote, item, anuncio ou pergunta: em PRD as 7
+  telas sobem vazias e **permanecem vazias**. E um relatorio, nao um sistema de
+  gestao.
+- **🔴 ABERTO — `/api/fotos` grava sem conferir sessao.** Os 4 handlers
+  (`route.ts` POST/PATCH e `[id]` PATCH/DELETE) nao chamam `lerSessao()`, e a
+  action tambem nao filtra. Hoje a janela e estreita (exige UUID valido e o site
+  publico nao existe), mas **no dia em que a vitrine renderizar uma foto o item
+  id vaza no `src` da imagem** e o DELETE vira remotamente explorave. Nenhuma UI
+  consome essas rotas — a correcao mais preguicosa e apaga-las ate a tela Site
+  existir.
+- **🔴 ABERTO — `/api/integracoes/oauth/.../iniciar` so tem `?t=SEGREDO`.** O
+  comentario do arquivo justifica com "nao existe autenticacao no sistema", o
+  que e **falso desde 2026-08-11**. Quem ler o segredo num log de acesso
+  autoriza a PROPRIA conta do ML e substitui a credencial da MM (so ha uma ativa
+  por canal). Agora que ha login, trocar por `lerSessao()` + `temPermissao()`.
+- **🔴 ABERTO — `/integracoes` nao confere papel.** E a unica pagina do painel
+  que nao chama `temPermissao`, e a matriz nega `integracoes` ao operador. Nao
+  vaza segredo, mas fura a matriz — que e o mesmo mecanismo que carrega a
+  RN-107.
+- **🔴 ABERTO — sem healthcheck e sem rollback.** O pipeline termina no `pm2` e
+  nada confere se a app responde: app que sobe e morre em 2s da deploy verde. As
+  migracoes sao so de ida, e o `pg_dump` **nunca foi restaurado nem uma vez** —
+  backup nao testado nao e backup.
+- **🔴 ABERTO — a sidebar mente em toda tela.** "Mercado Livre · ativo" e
+  "OLX · ativo" sao strings cravadas no JSX, em verde, enquanto `/integracoes`
+  diz corretamente que o app nao foi autorizado. Em PRD, com zero credencial, o
+  painel afirma o contrario da verdade na tela que o Anderson ve o dia inteiro.
+- **🟡 Fuso ainda em aberto:** nenhuma coluna e `timestamptz` e nada fixa TZ. O
+  `ecosystem.config.js` agora crava `TZ=America/Sao_Paulo` no processo — mas
+  **isso e metade**: a sessao do Postgres precisa do mesmo fuso, senao o filtro
+  montado em Node discorda do `date_trunc(now())` das consultas. Decisao do
+  Lucas, e ela vence antes do primeiro migrate em PRD.
+
 ### ⚠️ DECISAO DO ANDERSON: na OLX, "pausar" so existe como APAGAR
 - **Arquivo(s):** `src/lib/integracoes/olx/politica.ts`,
   `olx/executor-anuncio.ts`, `olx/client.ts`, `src/lib/integracoes/executores.ts`
@@ -160,14 +217,62 @@ venda.
   perguntava "por que isto e uma tarefa?". Vale como lembrete de onde os testes
   desta base nao alcancam.
 
-### Autenticacao existe, mas ninguem tem senha ainda
-- **Arquivo(s):** `src/lib/auth/{senha,sessao,rbac,politica-login}.ts`,
-  `src/lib/actions/auth.ts`, `src/app/login/`, `src/middleware.ts`,
-  `scripts/definir-senha.mjs`
-- **O que existe (2026-08-11):** login com senha (scrypt), sessao em tabela com
-  token guardado como hash, middleware, matriz de RBAC e a RN-107 com mecanismo
-  de filtro no servidor.
-- **O QUE FALTA PARA USAR:** ninguem tem senha. Rode, no seu terminal:
+### ✅ 2026-08-11: a autenticacao migrou para o Better Auth — o que se ganhou e o que se perdeu
+- **Arquivo(s):** `src/lib/auth/{config,sessao,cliente,rbac}.ts`,
+  `src/lib/db/schema/auth.ts`, `src/app/api/auth/[...all]/route.ts`,
+  `scripts/criar-usuario.mjs`, migracao `0011`
+- **Decisao do Paulo**, com as tabelas padrao da biblioteca (`user`, `session`,
+  `account`, `verification`) em vez de mapear sobre as existentes. As 11 FKs de
+  `modified_by` passaram a apontar para `user.id`; `usuarios` e
+  `usuarios_sessoes` ficaram **aposentadas, nao apagadas** (a regra da casa
+  proibe DROP).
+- **O QUE ISSO RESOLVEU, e era um bloqueio de producao real:** antes **nao
+  existia caminho para criar o primeiro usuario**. A unica linha semeada era o
+  robo das integracoes (`ativo = false`), e `definir-senha.mjs` so fazia UPDATE
+  — banco novo em PRD significava painel trancado para todo mundo, inclusive o
+  Anderson. Agora `scripts/criar-usuario.mjs` cria e troca senha.
+- **⚠️ PERDA 1 — `session.token` fica EM CLARO.** O `usuarios_sessoes.token_hash`
+  guardava SHA-256, entao dump vazado nao virava sessao ativa. O Better Auth
+  precisa do valor original para casar o cookie e o esquema dele nao preve hash.
+  Quem obtiver um dump entra como qualquer usuario logado ate a sessao expirar
+  (12h). Mitigacao possivel e **operacional** (quem le o banco, onde o dump
+  fica), nao de codigo.
+- **⚠️ PERDA 2 — o bloqueio por tentativas virou memoria de processo.** Era
+  contado no banco (`usuarios.tentativas_falhas`), justamente porque contador em
+  memoria zera a cada deploy e nao existe entre instancias. Hoje e aceitavel
+  porque o `ecosystem.config.js` fixa `instances: 1`; deixa de ser no dia do
+  cluster, e ai a saida e o storage secundario do Better Auth.
+- **⚠️ `user` e PALAVRA RESERVADA do Postgres.** O Drizzle sempre cita
+  identificador, entao a aplicacao esta segura — mas **SQL cru precisa de
+  `"user"` com aspas**. Ja mordeu: as quatro `scripts/db/prova-*.sql` tiveram de
+  ser portadas.
+- **⚠️ Cadastro publico DESLIGADO** (`disableSignUp: true`). Com
+  `emailAndPassword.enabled` sozinho, `POST /api/auth/sign-up/email` fica aberto
+  e, como `papel` tem default `operador` e `ativo` nasce `true`, qualquer um
+  criaria conta valida e entraria no painel. Verificado: a rota responde 400.
+- **O login por SERVER ACTION nao serve, e o motivo e concreto:** o limite de
+  tentativas roda no `onRequest` do router do Better Auth
+  (`better-auth/dist/api/index.mjs:168`). `auth.api.signInEmail()` chamado de
+  uma action passa por fora e **o rate limit nao se aplica**. Por isso o
+  formulario usa `authClient`. Nao "simplifique" de volta para action.
+- **VERIFICADO PONTA A PONTA — pela primeira vez no projeto.** O login antigo
+  nunca foi testado de verdade porque server action exige o protocolo interno do
+  Next; o do Better Auth e HTTP com JSON e curl alcanca. Provado: senha certa
+  200 + cookie; senha errada 401; cadastro publico 400; 6a tentativa 429; sessao
+  valida abre `/lotes`; sem cookie e cookie forjado sao barrados; **desligar
+  (`ativo=false`), excluir logicamente e vencer a sessao derrubam o acesso com a
+  MESMA sessao ja aberta**, e reativar volta a entrar. RN-107 conferida com os
+  dois papeis lado a lado: o operador recebe a pagina de acesso negado em
+  `/lotes`, sem link no menu e sem valor de dinheiro no HTML.
+- **As 27 provas de banco foram portadas e passam** (12 + 5 + 5 + 5), incluindo
+  os casos do unico parcial de e-mail e do FK RESTRICT, que agora vivem em
+  `user`.
+- **Nao construido:** recuperacao de senha por e-mail (a tabela `verification`
+  existe e nasce vazia; depende de servico de e-mail, nao decidido) e tela de
+  Equipe. Enquanto nao houver tela, cadastro e pelo script.
+
+### Historico: o que a entrada acima substituiu
+- **O QUE FALTAVA PARA USAR:** ninguem tem senha. Rode, no seu terminal:
   `node scripts/definir-senha.mjs anderson@mmsolucoes.com.br` — a senha e pedida
   oculta e nunca vira argumento de linha de comando (`history`, `ps`, log).
   **Nao passe senha real em chat, ticket ou para uma IA.**

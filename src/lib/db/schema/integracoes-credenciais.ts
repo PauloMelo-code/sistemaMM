@@ -15,7 +15,7 @@ import {
   pgTable, uuid, text, boolean, timestamp, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 import { canalEnum } from "./anuncios"; // enum de canal compartilhado
 
 export const integracoesCredenciais = pgTable(
@@ -49,7 +49,7 @@ export const integracoesCredenciais = pgTable(
     modified_by: uuid("modified_by")
       .notNull()
       // FK com RESTRICT — NUNCA cascade em dado critico
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     /**

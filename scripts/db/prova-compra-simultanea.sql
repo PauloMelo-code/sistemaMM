@@ -15,8 +15,8 @@ DECLARE
   pedido_ml uuid;
   vOlx text := 'OLX-'||substr(gen_random_uuid()::text,1,8);
 BEGIN
-  INSERT INTO usuarios (nome, email, papel, modified_by)
-    VALUES ('Anderson', 'teste'||substr(gen_random_uuid()::text,1,8)||'@prova.local', 'administrador', gen_random_uuid()) RETURNING id INTO u;
+  INSERT INTO "user" (name, email, papel)
+    VALUES ('Anderson', 'teste'||substr(gen_random_uuid()::text,1,8)||'@prova.local', 'administrador') RETURNING id INTO u;
   INSERT INTO lotes (nome, segmento, data_arremate, custo_total, modified_by)
     VALUES ('Lote Oftalmo 01', 'oftalmologia', '2026-08-01', 12000.00, u) RETURNING id INTO l;
   INSERT INTO itens (sku, nome, lote_id, segmento, custo, modified_by)

@@ -17,9 +17,9 @@ DECLARE
   chave text := 'itens/prova/'||gen_random_uuid()||'.jpg';
   quantasPrincipais int;
 BEGIN
-  INSERT INTO usuarios (nome, email, papel, modified_by)
+  INSERT INTO "user" (name, email, papel)
     VALUES ('Anderson', 'teste'||substr(gen_random_uuid()::text,1,8)||'@prova.local',
-            'administrador', gen_random_uuid()) RETURNING id INTO u;
+            'administrador') RETURNING id INTO u;
   INSERT INTO lotes (nome, segmento, data_arremate, custo_total, modified_by)
     VALUES ('Lote Oftalmo', 'oftalmologia', '2026-02-10', 12000.00, u) RETURNING id INTO l;
   INSERT INTO itens (sku, nome, lote_id, segmento, custo, modified_by)

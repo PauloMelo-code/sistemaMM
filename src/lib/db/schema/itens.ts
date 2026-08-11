@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { lotes } from "./lotes";
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 
 export const situacaoItemEnum = pgEnum("situacao_item", [
   "anunciado",
@@ -64,7 +64,7 @@ export const itens = pgTable(
     is_deleted: boolean("is_deleted").notNull().default(false),
     modified_by: uuid("modified_by")
       .notNull()
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     // Unico so entre os NAO deletados — ver comentario na coluna sku.

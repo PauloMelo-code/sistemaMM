@@ -1,23 +1,31 @@
 /**
- * Usuarios do painel MM Solucoes.
+ * ⚠️ TABELA APOSENTADA — nao use em codigo novo.
  *
- * RN-107 — O papel `operador` NAO pode ver custo.
- * Isso vale para: custo de arremate (itens.custo), custo do lote
- * (lotes.custo_total), margem e lucro (pricing.ts).
- * O filtro e feito NO SERVIDOR: o campo nao pode chegar ao cliente.
- * Esconder por CSS nao conta. Ver docs/regras-negocio.md (RN-107).
+ * A identidade migrou para `user` (Better Auth) em 2026-08-11; ver
+ * `./auth.ts`. As 11 FKs de `modified_by` que apontavam para ca agora apontam
+ * para `user.id`.
+ *
+ * POR QUE ELA CONTINUA AQUI, em vez de ser apagada: a regra absoluta da casa
+ * proibe DROP de estrutura de dados, e o `check-compliance` barra `DROP TABLE`
+ * em SQL. A tabela fica vazia e sem referencia — custo zero — e some no dia em
+ * que houver uma decisao consciente de limpeza de schema, com backup na mao.
+ *
+ * A UNICA linha que existia aqui em banco novo era o usuario-sistema das
+ * integracoes (migracao 0004, uuid fixo `...0001`, `ativo = false`). A migracao
+ * de corte recria essa linha em `user`, com o MESMO uuid — as escritas de
+ * webhook e job continuam assinando com o id que ja usavam.
+ *
+ * RN-107 continua valendo, so que a partir de `user.papel`.
  */
 import { sql } from "drizzle-orm";
 import {
-  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, index, uniqueIndex,
+  pgTable, uuid, text, integer, boolean, timestamp, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-// administrador = Anderson (ve tudo) | operador = sem custo (RN-107) | consultoria = Orbital
-export const papelUsuarioEnum = pgEnum("papel_usuario", [
-  "administrador",
-  "operador",
-  "consultoria",
-]);
+// Fonte do enum passou a ser ./auth (onde vive a tabela que manda hoje).
+// Importado e nao redeclarado: duas declaracoes do mesmo pgEnum fariam o
+// drizzle emitir dois CREATE TYPE para o mesmo nome.
+import { papelUsuarioEnum } from "./auth";
 
 export const usuarios = pgTable(
   "usuarios",
@@ -77,5 +85,7 @@ export const usuarios = pgTable(
   })
 );
 
-export type Usuario = typeof usuarios.$inferSelect;
-export type NovoUsuario = typeof usuarios.$inferInsert;
+// Os tipos `Usuario` / `NovoUsuario` saem daqui e passam a vir de `./auth`.
+// Nao e so higiene: o barril (`index.ts`) usa `export *`, entao os dois
+// arquivos exportando o mesmo nome deixaria ambiguo qual tabela o tipo
+// descreve — e a errada e a aposentada.

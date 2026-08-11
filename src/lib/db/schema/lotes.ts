@@ -6,7 +6,7 @@
  */
 import { pgTable, uuid, text, numeric, boolean, timestamp, date, index } from "drizzle-orm/pg-core";
 
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 
 export const lotes = pgTable(
   "lotes",
@@ -30,7 +30,7 @@ export const lotes = pgTable(
     is_deleted: boolean("is_deleted").notNull().default(false),
     modified_by: uuid("modified_by")
       .notNull()
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     naoDeletadosIdx: index("idx_lotes_ativos").on(t.is_deleted),

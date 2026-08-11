@@ -25,8 +25,8 @@ DECLARE
 BEGIN
   vEmailMaiusc := upper(left(vEmail,1))||substr(vEmail,2);
   -- ---------- seed minimo ----------
-  INSERT INTO usuarios (nome, email, papel, modified_by)
-    VALUES ('Anderson', vEmailMaiusc, 'administrador', gen_random_uuid())
+  INSERT INTO "user" (name, email, papel)
+    VALUES ('Anderson', vEmailMaiusc, 'administrador')
     RETURNING id INTO u;
   INSERT INTO lotes (nome, segmento, data_arremate, custo_total, modified_by)
     VALUES ('Lote Oftalmo 01', 'oftalmologia', '2026-08-01', 12000.00, u)
@@ -40,8 +40,8 @@ BEGIN
 
   -- ---------- 1) email case-insensitive ----------
   BEGIN
-    INSERT INTO usuarios (nome, email, papel, modified_by)
-      VALUES ('Anderson (2a conta)', vEmail, 'operador', u);
+    INSERT INTO "user" (name, email, papel)
+      VALUES ('Anderson (2a conta)', vEmail, 'operador');
     RAISE NOTICE 'FALHOU  1) email so difere no case: DEIXOU criar 2a conta ativa';
     falhou := falhou + 1;
   EXCEPTION WHEN unique_violation THEN
@@ -50,10 +50,10 @@ BEGIN
   END;
 
   -- ---------- 2) soft delete libera o email ----------
-  UPDATE usuarios SET is_deleted = true, deleted_at = now() WHERE id = u;
+  UPDATE "user" SET is_deleted = true, deleted_at = now() WHERE id = u;
   BEGIN
-    INSERT INTO usuarios (nome, email, papel, modified_by)
-      VALUES ('Anderson recadastrado', vEmail, 'administrador', u);
+    INSERT INTO "user" (name, email, papel)
+      VALUES ('Anderson recadastrado', vEmail, 'administrador');
     RAISE NOTICE 'OK      2) apos soft delete, o email volta a ficar livre';
     ok := ok + 1;
   EXCEPTION WHEN unique_violation THEN
@@ -63,7 +63,7 @@ BEGIN
   -- 2b) REATIVAR o excluido enquanto o recadastrado esta ativo tem que COLIDIR.
   -- E o caso operacional real: "excluiu por engano, quer voltar atras".
   BEGIN
-    UPDATE usuarios SET is_deleted = false, deleted_at = NULL WHERE id = u;
+    UPDATE "user" SET is_deleted = false, deleted_at = NULL WHERE id = u;
     RAISE NOTICE 'FALHOU 2b) reativou criando 2 contas ativas com o mesmo email';
     falhou := falhou + 1;
   EXCEPTION WHEN unique_violation THEN
@@ -71,8 +71,8 @@ BEGIN
     ok := ok + 1;
   END;
   -- limpa o recadastrado e so entao reativa o original
-  DELETE FROM usuarios WHERE email = vEmail AND id <> u;
-  UPDATE usuarios SET is_deleted = false, deleted_at = NULL WHERE id = u;
+  DELETE FROM "user" WHERE email = vEmail AND id <> u;
+  UPDATE "user" SET is_deleted = false, deleted_at = NULL WHERE id = u;
 
   -- ---------- 3) SKU duplicado entre itens ativos ----------
   BEGIN
@@ -135,7 +135,7 @@ BEGIN
 
   -- ---------- 7) FK RESTRICT protege o usuario ----------
   BEGIN
-    DELETE FROM usuarios WHERE id = u;
+    DELETE FROM "user" WHERE id = u;
     RAISE NOTICE 'FALHOU  7) DELETE fisico de usuario com registros: PASSOU';
     falhou := falhou + 1;
   EXCEPTION WHEN foreign_key_violation THEN
@@ -188,7 +188,7 @@ END $$;
 ROLLBACK;
 
 -- Confirma que nada sobrou.
-SELECT 'usuarios' AS tabela, count(*) FROM usuarios
+SELECT 'user' AS tabela, count(*) FROM "user"
 UNION ALL SELECT 'itens', count(*) FROM itens
 UNION ALL SELECT 'pedidos', count(*) FROM pedidos
 UNION ALL SELECT 'auditoria', count(*) FROM auditoria;

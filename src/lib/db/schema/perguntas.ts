@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { itens } from "./itens";
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 import { canalEnum } from "./anuncios"; // enum de canal compartilhado (um tipo so no Postgres)
 
 export const statusPerguntaEnum = pgEnum("status_pergunta", [
@@ -46,7 +46,7 @@ export const perguntas = pgTable(
     is_deleted: boolean("is_deleted").notNull().default(false),
     modified_by: uuid("modified_by")
       .notNull()
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
   },
   (t) => ({
     // O comentario da coluna promete "chave para o webhook nao duplicar" — sem

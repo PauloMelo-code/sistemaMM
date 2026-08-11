@@ -16,7 +16,7 @@
  */
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 
-import { usuarios } from "./usuarios";
+import { user } from "./auth";
 
 // compliance:append-only — excecao deliberada as colunas de auditoria.
 // Esta tabela E a trilha: linha gravada nunca e alterada nem excluida, nem
@@ -31,7 +31,7 @@ export const auditoria = pgTable(
     user_id: uuid("user_id")
       .notNull()
       // FK com RESTRICT — usuario com trilha nao pode ser removido do banco
-      .references(() => usuarios.id, { onDelete: "restrict" }),
+      .references(() => user.id, { onDelete: "restrict" }),
 
     /** O que foi feito: "criar" | "atualizar" | "excluir". */
     acao: text("acao").notNull(),

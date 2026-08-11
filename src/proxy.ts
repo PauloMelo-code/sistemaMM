@@ -17,7 +17,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const COOKIE_SESSAO = "mm_sessao";
+/**
+ * Nome do cookie do Better Auth: `<advanced.cookiePrefix>.session_token`, com o
+ * prefixo `mm` definido em `src/lib/auth/config.ts`.
+ *
+ * ⚠️ Nao da para importar de `@/lib/auth/sessao` aqui: aquele modulo puxa a
+ * configuracao inteira, que puxa o driver do banco — e este arquivo roda no
+ * edge. A constante e duplicada de proposito; se mudar o prefixo, mude nos dois.
+ */
+const COOKIE_SESSAO = "mm.session_token";
 
 /** Rotas que existem sem sessao. */
 const PUBLICAS = ["/login"];
@@ -37,7 +45,9 @@ export function proxy(request: NextRequest) {
   }
 
   if (temCookie && ehPublica) {
-    return NextResponse.redirect(new URL("/perguntas", request.url));
+    // Para a raiz, que e a Visao geral. Ia para /perguntas de quando `/` ainda
+    // era o placeholder de docs.
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
@@ -46,10 +56,14 @@ export function proxy(request: NextRequest) {
 export const config = {
   /**
    * Fora do porteiro:
+   * - `/api/auth/*` — as rotas do Better Auth. OBRIGATORIO: e por elas que o
+   *   login acontece, e quem esta fazendo login ainda nao tem cookie. Sem esta
+   *   excecao o `POST /api/auth/sign-in/email` seria redirecionado para
+   *   /login — o login mandando para o login, em laco.
    * - `/api/integracoes/*` — chamadas de MAQUINA (webhook, worker, OAuth de
    *   canal). Tem porteiro proprio por segredo; exigir cookie aqui quebraria o
    *   webhook do ML, que obviamente nao tem sessao.
    * - estaticos e imagem — nao ha o que proteger e custa latencia em toda carga.
    */
-  matcher: ["/((?!api/integracoes|_next/static|_next/image|favicon.ico|icon.png).*)"],
+  matcher: ["/((?!api/auth|api/integracoes|_next/static|_next/image|favicon.ico|icon.png).*)"],
 };
