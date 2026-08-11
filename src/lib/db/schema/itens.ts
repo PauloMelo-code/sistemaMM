@@ -47,6 +47,15 @@ export const itens = pgTable(
     // Endereco no galpao (ex.: "A · 2"). Nulo ate ser enderecado.
     local_galpao: text("local_galpao"),
     situacao: situacaoItemEnum("situacao").notNull().default("sem_anuncio"),
+    /**
+     * Toggle "Exibir no site" da tela Site/CMS. Nasce DESLIGADO: item entra no
+     * estoque antes de ter foto e descricao, e o site nao pode publicar sozinho
+     * o que ninguem revisou.
+     *
+     * Metade da RN-109 — a outra e ter foto (`itens_fotos`). As duas valem
+     * juntas: ligar o toggle num item sem foto nao publica nada.
+     */
+    exibir_no_site: boolean("exibir_no_site").notNull().default(false),
 
     // --- colunas de auditoria OBRIGATORIAS (nunca omitir) ---
     created_at: timestamp("created_at").notNull().defaultNow(),
