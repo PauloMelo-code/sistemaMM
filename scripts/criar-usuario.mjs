@@ -62,6 +62,17 @@ if (papel && !PAPEIS.includes(papel)) {
 const raiz = resolve(import.meta.dirname, "..");
 
 /**
+ * Marca de progresso.
+ *
+ * ⚠️ NAO E ENFEITE. Este script travou duas vezes num console web onde nao ha
+ * depurador, e nas duas o sintoma foi o mesmo: cursor piscando, zero saida,
+ * nenhuma pista de onde parou. Sem isto, descobrir o passo exige redeploy.
+ *
+ * Vai em `stderr` para nao poluir a saida util de quem canaliza o comando.
+ */
+const passo = (texto) => process.stderr.write(`  · ${texto}\n`);
+
+/**
  * DATABASE_URL do ambiente ou do `.env` — sem depender do dotenv.
  *
  * ⚠️ O `replace(/^﻿/, "")` NAO e paranoia: no Windows, `Set-Content
@@ -94,13 +105,18 @@ function urlDoBanco() {
  * erro, sem pista.
  *
  * A segunda tentativa usou `readline` com `terminal: false` e duas chamadas de
- * `question()`. Travou tambem, e ate com entrada canalizada: nesse modo o
- * readline nao entrega as duas linhas de forma sequencial como se espera.
+ * `question()`. Ela LEU as duas linhas certo — os dois prompts saem na tela —
+ * mas a execucao ficou pendurada mesmo assim, e a causa nunca foi isolada: o
+ * processo teve de ser morto de fora. (Registrado assim de proposito: a versao
+ * anterior deste comentario culpava o readline por nao entregar as linhas em
+ * sequencia, e isso era FALSO. Diagnostico errado gravado no codigo custa mais
+ * caro que diagnostico ausente.)
  *
- * A conclusao e que **nao da para distinguir com seguranca** "stdin canalizado
- * que vai terminar" de "console interativo que nunca termina". Entao o caminho
- * sem TTY deixa de ler stdin: a senha vem de `MM_SENHA`. E impossivel travar,
- * e a mensagem diz exatamente o que fazer.
+ * O argumento que decide, e que independe daquela causa desconhecida: **nao da
+ * para distinguir com seguranca** "stdin canalizado que vai terminar" de
+ * "console interativo que nunca termina". Enquanto o caminho sem TTY depender
+ * de stdin, ele pode travar. Entao ele deixa de depender: a senha vem de
+ * `MM_SENHA`. E impossivel travar, e a mensagem diz exatamente o que fazer.
  *
  * O custo, dito na cara: em `MM_SENHA=... node ...` a senha aparece na tela e
  * fica no ambiente do processo. Num container de um cliente so, isso e
@@ -109,6 +125,21 @@ function urlDoBanco() {
  * prompt oculto continua sendo o caminho preferido.
  */
 async function obterSenha() {
+  /**
+   * `MM_SENHA` VENCE SEMPRE, com ou sem TTY — e esta linha e a correcao do
+   * defeito que travou o deploy duas vezes.
+   *
+   * Antes, a variavel so era consultada quando `stdin.isTTY` era falso. No
+   * console web do EasyPanel o Node reporta TTY, entao o script IGNORAVA a
+   * senha que a pessoa acabara de passar, criava o readline e ficava esperando
+   * digitacao — com o eco desligado, ou seja, sem prompt visivel e sem cursor
+   * util. Da tela, indistinguivel de travamento.
+   *
+   * A regra certa e obvia depois de vista: quem passou a senha explicitamente
+   * nao quer ser perguntado. O prompt e o caminho de quem NAO passou.
+   */
+  if (env.MM_SENHA) return env.MM_SENHA;
+
   if (stdin.isTTY !== true) {
     const doAmbiente = env.MM_SENHA;
     if (!doAmbiente) {
@@ -164,6 +195,7 @@ if (!connectionString) {
 const cliente = new pg.Client({ connectionString, connectionTimeoutMillis: 10_000 });
 
 try {
+  passo("conectando ao banco...");
   await cliente.connect();
 } catch (erro) {
   console.error("Nao consegui falar com o banco.");
@@ -175,6 +207,7 @@ try {
 try {
   // `"user"` COM ASPAS: `user` e palavra reservada do Postgres. Sem as aspas o
   // Postgres entende o usuario da sessao, nao a nossa tabela.
+  passo("procurando o usuario...");
   const { rows } = await cliente.query(
     `SELECT id, name, papel, ativo FROM "user"
      WHERE lower(email) = $1 AND is_deleted = false`,
@@ -188,6 +221,7 @@ try {
     exit(1);
   }
 
+  passo("obtendo a senha...");
   const senha = await obterSenha();
 
   if (senha.length < TAMANHO_MINIMO) {
@@ -196,12 +230,14 @@ try {
   }
 
   // Hash pela propria biblioteca: e o formato que `sign-in/email` sabe conferir.
+  passo("gerando o hash (scrypt)...");
   const hash = await hashPassword(senha);
 
   // Tudo numa transacao. Se a senha mudasse e as sessoes sobrevivessem por uma
   // falha no meio, quem ja estava dentro continuaria dentro — e esse e
   // exatamente o cenario em que a senha e trocada por suspeita de acesso
   // indevido.
+  passo("abrindo transacao...");
   await cliente.query("BEGIN");
 
   let usuarioId = existente?.id;
@@ -254,6 +290,7 @@ try {
     [usuarioId],
   );
 
+  passo("gravando (COMMIT)...");
   await cliente.query("COMMIT");
 
   console.log(
