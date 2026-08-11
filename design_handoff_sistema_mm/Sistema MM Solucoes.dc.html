@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta charset="utf-8">
+<title>Sistema MM Soluções · Painel de Acompanhamento</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #EDEFF2; }
+  a { color: #16324F; } a:hover { color: #0E2136; }
+</style>
+</helmet>
+<div data-screen-label="Sistema MM Soluções" style="display: flex; min-height: 100vh; font-family: Jost, sans-serif; color: #2B3440;">
+
+  <aside style="width: 236px; background: #16324F; color: #fff; display: flex; flex-direction: column; padding: 24px 0; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 0 22px 22px; border-bottom: 1px solid rgba(255,255,255,.14);">
+      <svg width="170" height="56" viewBox="0 0 340 110">
+        <text x="14" y="62" font-family="Archivo, sans-serif" font-weight="800" font-size="52" fill="#FFFFFF" letter-spacing="-2">MM</text>
+        <polygon points="126,18 146,18 166,62 156,62" fill="#D97941"></polygon>
+        <polygon points="146,18 166,18 186,62 176,62" fill="#D97941" opacity=".55"></polygon>
+        <text x="14" y="96" font-family="Jost, sans-serif" font-weight="400" font-size="15" fill="#9FB0C2" letter-spacing="4.5">SOLUÇÕES EMPRESARIAIS</text>
+      </svg>
+    </div>
+    <nav style="display: flex; flex-direction: column; padding: 16px 12px; gap: 2px; font-size: 14px;">
+      <div onClick="{{ goVisao }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isVisao }}" hint-placeholder-val="{{ true }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Visão geral</div>
+      <div onClick="{{ goAnuncios }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isAnuncios }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Anúncios</div>
+      <div onClick="{{ goSite }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isSite }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Site</div>
+      <div onClick="{{ goPerguntas }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isPerguntas }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Perguntas<span style="margin-left: auto; background: #E8A33D; color: #16324F; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 20px;">3</span></div>
+      <div onClick="{{ goPedidos }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isPedidos }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Pedidos</div>
+      <div onClick="{{ goExpedicao }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isExpedicao }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Expedição<span style="margin-left: auto; background: rgba(255,255,255,.16); color: #C7D2DD; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 20px;">2</span></div>
+      <div onClick="{{ goItens }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isItens }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Estoque</div>
+      <div onClick="{{ goEstoque }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isEstoque }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Lotes</div>
+      <div onClick="{{ goCalculadora }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isCalculadora }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Calculadora de preço</div>
+      <div onClick="{{ goRelatorios }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isRelatorios }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Relatórios</div>
+      <div onClick="{{ goEquipe }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isEquipe }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Equipe</div>
+      <div onClick="{{ goIntegracoes }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; color: #C7D2DD; cursor: pointer;" style-hover="background: rgba(255,255,255,.08);">
+        <sc-if value="{{ isIntegracoes }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #E8A33D; display: block;"></span></sc-if>Integrações</div>
+    </nav>
+    <div style="margin-top: auto; padding: 16px 22px; border-top: 1px solid rgba(255,255,255,.14); display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+      <span style="letter-spacing: .22em; text-transform: uppercase; color: #9FB0C2; font-size: 10px;">Canais conectados</span>
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #5FBF77; display: block;"></span>Mercado Livre · ativo</span>
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #5FBF77; display: block;"></span>OLX · ativo</span>
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #E8A33D; display: block;"></span>WhatsApp · vinculado</span>
+    </div>
+  </aside>
+
+  <main style="flex: 1; display: flex; flex-direction: column; padding: 28px 32px; gap: 24px; min-width: 0;">
+
+    <sc-if value="{{ isVisao }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Visão geral" style="display: flex; flex-direction: column; gap: 24px;">
+        <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Visão geral</h1>
+            <span style="font-size: 13px; color: #6B7684;">Segunda-feira, 10 de agosto · dados de todos os canais</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button onClick="{{ goRelatorios }}" style="border: 1px solid #D4D9E0; background: #fff; border-radius: 6px; padding: 9px 16px; font-family: Jost, sans-serif; font-size: 13px; color: #2B3440; cursor: pointer;">Ver relatórios</button>
+            <button onClick="{{ goAnuncios }}" style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">+ Novo anúncio</button>
+          </div>
+        </header>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Vendas do mês</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">R$ 38.400</span>
+            <span style="font-size: 12px; color: #3E8E55;">▲ 8 pedidos concluídos</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Margem média</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">41%</span>
+            <span style="font-size: 12px; color: #6B7684;">após taxas das plataformas</span>
+          </div>
+          <div onClick="{{ goPerguntas }}" style="background: #fff; border: 1px solid #E8A33D; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; cursor: pointer;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #B07514;">Perguntas sem resposta</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #B07514;">3</span>
+            <span style="font-size: 12px; color: #B07514;">responder hoje mantém a reputação</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Tempo médio de resposta</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">1h 12min</span>
+            <span style="font-size: 12px; color: #3E8E55;">▲ dentro da meta (até 4h)</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; align-items: start;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden; min-width: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Anúncios em destaque</span>
+              <span onClick="{{ goAnuncios }}" style="font-size: 12px; color: #16324F; font-weight: 500; cursor: pointer;">Ver todos →</span>
+            </div>
+            <div style="display: grid; grid-template-columns: minmax(0,1fr) 52px 88px 104px; font-size: 13px;">
+              <span style="padding: 10px 16px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Produto</span>
+              <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Canal</span>
+              <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Preço</span>
+              <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Status</span>
+              <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Autorrefrator automático · Lote 14</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 18.900</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+              <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Cadeira oftalmológica elétrica · Lote 14</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 7.400</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+              <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Encadernadora industrial semiautomática · Lote 11</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 5.200</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Negociando</span></span>
+              <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Banco de baterias estacionárias 220Ah · Lote 9</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 3.150</span>
+              <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Perguntas recentes</span>
+                <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px;">3 pendentes</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <div style="padding: 14px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 12px; color: #6B7684;">Mercado Livre · Autorrefrator · há 40 min</span>
+                  <span style="font-size: 13px;">"Emite nota fiscal? Qual o prazo de envio para Curitiba?"</span>
+                  <span onClick="{{ goPerguntas }}" style="font-size: 12px; color: #16324F; font-weight: 500; cursor: pointer;">Responder →</span>
+                </div>
+                <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 12px; color: #6B7684;">OLX · Encadernadora · há 2h</span>
+                  <span style="font-size: 13px;">"Aceita R$ 4.800 à vista com retirada?"</span>
+                  <span onClick="{{ goPerguntas }}" style="font-size: 12px; color: #16324F; font-weight: 500; cursor: pointer;">Responder →</span>
+                </div>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Estoque por lote</span>
+              </div>
+              <div style="display: flex; flex-direction: column; font-size: 13px;">
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Lote 14 · Oftalmologia</span><span style="color: #6B7684;">9 itens · 4 anunciados</span></div>
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Lote 11 · Encadernação</span><span style="color: #6B7684;">6 itens · 3 anunciados</span></div>
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Lote 9 · Baterias</span><span style="color: #6B7684;">14 itens · 8 anunciados</span></div>
+                <div style="padding: 12px 20px; display: flex; justify-content: space-between;"><span>Lote 7 · Peças automotivas</span><span style="color: #6B7684;">22 itens · 5 anunciados</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isAnuncios }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Anúncios" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Anúncios</h1>
+            <span style="font-size: 13px; color: #6B7684;">16 anúncios · 14 no ar · 2 pausados · sincronizado há 4 min</span>
+          </div>
+          <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">+ Novo anúncio</button>
+        </header>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span style="background: #16324F; color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Todos</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Mercado Livre</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">OLX</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">No ar</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Negociando</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Pausados</span>
+        </div>
+        <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: minmax(0,1fr) 52px 88px 88px 72px 104px; font-size: 13px;">
+            <span style="padding: 10px 16px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Produto</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Canal</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Preço</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Margem</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Visitas</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Status</span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Autorrefrator automático Topcon · Lote 14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 18.900</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">46%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">342</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Cadeira oftalmológica elétrica · Lote 14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 7.400</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">39%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">198</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Coluna oftálmica com refrator · Lote 14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 12.500</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">44%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">211</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Encadernadora industrial semiautomática · Lote 11</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 5.200</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">37%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">126</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Negociando</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Guilhotina de papel profissional · Lote 11</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 2.900</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">42%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">94</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Banco de baterias estacionárias 220Ah · Lote 9</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 3.150</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">35%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">89</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Jogo de bielas e pistões novos · Lote 7</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 1.890</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #B07514;">28%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">57</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #EDF0F3; color: #6B7684; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Pausado</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Compressor odontológico isento de óleo · Lote 14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 4.300</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">40%</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">73</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">No ar</span></span>
+          </div>
+        </div>
+        <div style="background: #FDF3E1; border: 1px solid #E8A33D; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7A5410;">
+          <strong style="font-weight: 500;">Dica do sistema:</strong> a margem exibida já desconta a taxa do canal (ML ~14% + frete · OLX plano contratado). Anúncios com margem abaixo de 30% ficam marcados em âmbar para revisão de preço.
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPerguntas }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Perguntas" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Perguntas</h1>
+          <span style="font-size: 13px; color: #6B7684;">Caixa unificada · Mercado Livre, OLX e WhatsApp · meta de resposta: 4h</span>
+        </header>
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+            <div style="display: flex; flex-direction: column;">
+              <div style="padding: 16px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 6px; background: #FDF9F0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #6B7684;">Mercado Livre · Autorrefrator automático</span>
+                  <span style="background: #FDE8E8; color: #B03A3A; font-size: 11px; padding: 3px 8px; border-radius: 20px;">SLA: 3h 20min restantes</span>
+                </div>
+                <span style="font-size: 14px;">"Emite nota fiscal? Qual o prazo de envio para Curitiba?"</span>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                  <span style="border: 1px solid #16324F; color: #16324F; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Responder</span>
+                  <span style="border: 1px solid #D4D9E0; color: #6B7684; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Usar modelo: NF + prazo</span>
+                </div>
+              </div>
+              <div style="padding: 16px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 6px; background: #FDF9F0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #6B7684;">OLX · Encadernadora industrial</span>
+                  <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px;">SLA: 2h restantes</span>
+                </div>
+                <span style="font-size: 14px;">"Aceita R$ 4.800 à vista com retirada?"</span>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                  <span style="border: 1px solid #16324F; color: #16324F; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Responder</span>
+                  <span style="border: 1px solid #D4D9E0; color: #6B7684; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Contra-proposta</span>
+                </div>
+              </div>
+              <div style="padding: 16px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 6px; background: #FDF9F0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #6B7684;">Mercado Livre · Cadeira oftalmológica</span>
+                  <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px;">SLA: 55min restantes</span>
+                </div>
+                <span style="font-size: 14px;">"Tem garantia? Equipamento revisado?"</span>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                  <span style="border: 1px solid #16324F; color: #16324F; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Responder</span>
+                  <span style="border: 1px solid #D4D9E0; color: #6B7684; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;">Usar modelo: garantia</span>
+                </div>
+              </div>
+              <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; opacity: .6;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #6B7684;">WhatsApp · Guilhotina profissional</span>
+                  <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px;">Respondida · 28min</span>
+                </div>
+                <span style="font-size: 14px;">"Faz entrega em Londrina?"</span>
+              </div>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Modelos de resposta</span>
+            </div>
+            <div style="display: flex; flex-direction: column; font-size: 13px;">
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 500;">NF + prazo de envio</span>
+                <span style="color: #6B7684; font-size: 12px;">"Sim, emitimos NF-e. O envio sai de Maringá/PR em até 2 dias úteis…"</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 500;">Garantia e revisão</span>
+                <span style="color: #6B7684; font-size: 12px;">"O equipamento passa por checagem de funcionamento antes do envio, com 90 dias de garantia…"</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 500;">Retirada em mãos</span>
+                <span style="color: #6B7684; font-size: 12px;">"Retirada em Maringá/PR com agendamento. Aceitamos PIX na entrega…"</span>
+              </div>
+              <div style="padding: 13px 20px; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 500;">Negociação de preço</span>
+                <span style="color: #6B7684; font-size: 12px;">"Conseguimos condição especial à vista. Me confirma a forma de pagamento…"</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPedidos }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Pedidos" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Pedidos</h1>
+          <span style="font-size: 13px; color: #6B7684;">Agosto · 8 concluídos · 2 em andamento · sincronizado via API dos canais</span>
+        </header>
+        <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: 76px minmax(0,1fr) 52px 88px 76px 88px 112px; font-size: 13px;">
+            <span style="padding: 10px 16px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Nº</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Produto</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Canal</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Valor</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Taxa</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">NF-e</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Status</span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3; color: #6B7684;">#1024</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">Coluna oftálmica com refrator</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 12.500</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #B03A3A;">R$ 1.750</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">Emitida</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Aguardando envio</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3; color: #6B7684;">#1023</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">Guilhotina de papel profissional</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 2.900</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #B03A3A;">R$ 145</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">Emitida</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E3EEF9; color: #2C6199; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Em transporte</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3; color: #6B7684;">#1022</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">Compressor odontológico</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 4.300</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #B03A3A;">R$ 602</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">Emitida</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Concluído</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3; color: #6B7684;">#1021</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">Bateria estacionária 220Ah (2 un.)</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 6.300</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #B03A3A;">R$ 315</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">Emitida</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Concluído</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3; color: #6B7684;">#1020</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">Kit peças automotivas (retirada)</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">WA</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 2.150</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">—</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #3E8E55;">Emitida</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Concluído</span></span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Faturamento bruto</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #16324F;">R$ 38.400</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Taxas das plataformas</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #B03A3A;">− R$ 3.960</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Comissões (4%)</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #B03A3A;">− R$ 1.536</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Líquido do mês</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #3E8E55;">R$ 32.904</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isItens }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Estoque" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Estoque</h1>
+            <span style="font-size: 13px; color: #6B7684;">51 itens · baixa automática quando o item vende em qualquer canal</span>
+          </div>
+          <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">+ Novo item</button>
+        </header>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Disponíveis</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #16324F;">28</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E8A33D; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #B07514;">Sem anúncio</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #B07514;">12</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Reservados</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #16324F;">2</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Vendidos no mês</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px; color: #3E8E55;">9</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span style="background: #16324F; color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Todos os segmentos</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Oftalmologia</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Encadernação</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Baterias</span>
+          <span style="background: #fff; border: 1px solid #D4D9E0; color: #2B3440; font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;">Automotivo</span>
+        </div>
+        <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: minmax(0,1fr) 70px 110px 88px 88px 72px 108px; font-size: 13px;">
+            <span style="padding: 10px 16px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Item</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Lote</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Segmento</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Custo</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Preço alvo</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Canais</span>
+            <span style="padding: 10px 8px; background: #F7F8FA; color: #6B7684; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;">Situação</span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Autorrefrator automático Topcon</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Oftalmologia</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 10.200</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 18.900</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Anunciado</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Tonômetro de aplanação</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Oftalmologia</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 2.400</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 4.600</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">—</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Sem anúncio</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Encadernadora industrial semiautomática</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">11</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Encadernação</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 3.300</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 5.200</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E3EEF9; color: #2C6199; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Reservado</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Bateria estacionária 220Ah</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">9</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Baterias</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 1.500</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 3.150</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML · OLX</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Anunciado</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Jogo de bielas e pistões novos</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">7</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Automotivo</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 1.100</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 1.890</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #EDF0F3; color: #6B7684; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Pausado</span></span>
+            <span style="padding: 13px 16px; border-top: 1px solid #EDF0F3;">Cadeira oftalmológica elétrica</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">14</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">Oftalmologia</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;">R$ 4.100</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; font-weight: 500;">R$ 7.400</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3; color: #6B7684;">ML</span>
+            <span style="padding: 13px 8px; border-top: 1px solid #EDF0F3;"><span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;">Anunciado</span></span>
+          </div>
+        </div>
+        <div style="background: #FDF3E1; border: 1px solid #E8A33D; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7A5410;">
+          <strong style="font-weight: 500;">Alerta do sistema:</strong> 12 itens disponíveis ainda sem anúncio. Cada item parado é capital do lote sem girar. A meta é 100% do estoque anunciado em pelo menos um canal.
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isEstoque }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Lotes" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Lotes arrematados</h1>
+            <span style="font-size: 13px; color: #6B7684;">51 itens em 4 lotes · custo total arrematado R$ 92.300</span>
+          </div>
+          <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">+ Novo lote</button>
+        </header>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px; color: #16324F;">Lote 14 · Oftalmologia</span>
+              <span style="font-size: 12px; color: #6B7684;">arrematado em jun/2026</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Custo</span><span style="font-weight: 500;">R$ 41.000</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Anunciado</span><span style="font-weight: 500;">R$ 47.400</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Vendido</span><span style="font-weight: 500; color: #3E8E55;">R$ 16.800</span></div>
+            </div>
+            <div style="height: 8px; background: #EDF0F3; border-radius: 6px; overflow: hidden;"><span style="display: block; height: 100%; width: 41%; background: #3E8E55;"></span></div>
+            <span style="font-size: 12px; color: #6B7684;">9 itens · 4 anunciados · 3 vendidos · giro estimado: 4 meses</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px; color: #16324F;">Lote 11 · Encadernação</span>
+              <span style="font-size: 12px; color: #6B7684;">arrematado em mai/2026</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Custo</span><span style="font-weight: 500;">R$ 18.500</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Anunciado</span><span style="font-weight: 500;">R$ 14.300</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Vendido</span><span style="font-weight: 500; color: #3E8E55;">R$ 7.100</span></div>
+            </div>
+            <div style="height: 8px; background: #EDF0F3; border-radius: 6px; overflow: hidden;"><span style="display: block; height: 100%; width: 38%; background: #3E8E55;"></span></div>
+            <span style="font-size: 12px; color: #6B7684;">6 itens · 3 anunciados · 2 vendidos · giro estimado: 3 meses</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px; color: #16324F;">Lote 9 · Baterias</span>
+              <span style="font-size: 12px; color: #6B7684;">arrematado em abr/2026</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Custo</span><span style="font-weight: 500;">R$ 21.000</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Anunciado</span><span style="font-weight: 500;">R$ 25.200</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Vendido</span><span style="font-weight: 500; color: #3E8E55;">R$ 12.600</span></div>
+            </div>
+            <div style="height: 8px; background: #EDF0F3; border-radius: 6px; overflow: hidden;"><span style="display: block; height: 100%; width: 50%; background: #3E8E55;"></span></div>
+            <span style="font-size: 12px; color: #6B7684;">14 itens · 8 anunciados · 6 vendidos · giro estimado: 2 meses</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px; color: #16324F;">Lote 7 · Peças automotivas</span>
+              <span style="font-size: 12px; color: #6B7684;">arrematado em mar/2026</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Custo</span><span style="font-weight: 500;">R$ 11.800</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Anunciado</span><span style="font-weight: 500;">R$ 9.700</span></div>
+              <div style="display: flex; flex-direction: column;"><span style="color: #6B7684; font-size: 11px; text-transform: uppercase; letter-spacing: .1em;">Vendido</span><span style="font-weight: 500; color: #3E8E55;">R$ 4.900</span></div>
+            </div>
+            <div style="height: 8px; background: #EDF0F3; border-radius: 6px; overflow: hidden;"><span style="display: block; height: 100%; width: 41%; background: #E8A33D;"></span></div>
+            <span style="font-size: 12px; color: #B07514;">22 itens · 5 anunciados · giro lento · sugestão: promoção ou venda em kit</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isRelatorios }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Relatórios" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Relatórios</h1>
+            <span style="font-size: 13px; color: #6B7684;">Últimos 3 meses · exportável em PDF para acompanhamento</span>
+          </div>
+          <button style="border: 1px solid #D4D9E0; background: #fff; border-radius: 6px; padding: 9px 16px; font-family: Jost, sans-serif; font-size: 13px; color: #2B3440; cursor: pointer;">Exportar PDF</button>
+        </header>
+        <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+            <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Vendas por canal (R$ mil)</span>
+            <div style="display: flex; flex-direction: column; gap: 14px; font-size: 12px;">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="color: #6B7684;">Junho</span>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 34%; background: #16324F; border-radius: 3px; display: block;"></span><span>ML · 11,2</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 18%; background: #D97941; border-radius: 3px; display: block;"></span><span>OLX · 6,1</span></div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="color: #6B7684;">Julho</span>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 52%; background: #16324F; border-radius: 3px; display: block;"></span><span>ML · 17,4</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 27%; background: #D97941; border-radius: 3px; display: block;"></span><span>OLX · 9,0</span></div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="color: #6B7684;">Agosto (parcial)</span>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 64%; background: #16324F; border-radius: 3px; display: block;"></span><span>ML · 21,3</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 39%; background: #D97941; border-radius: 3px; display: block;"></span><span>OLX · 13,0</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="height: 18px; width: 12%; background: #5FBF77; border-radius: 3px; display: block;"></span><span>WhatsApp · 4,1</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Reputação Mercado Livre</span>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="width: 14px; height: 14px; border-radius: 50%; background: #5FBF77; display: block;"></span>
+                <span style="font-size: 14px; font-weight: 500;">Verde · a caminho de MercadoLíder</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #6B7684;">
+                <span>Vendas concluídas: 14 de 10 necessárias ✓</span>
+                <span>Reclamações: 0% (limite 2%) ✓</span>
+                <span>Envios com atraso: 4% (limite 15%) ✓</span>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Top produtos por margem</span>
+              <div style="display: flex; flex-direction: column; font-size: 13px; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;"><span>Autorrefrator Topcon</span><span style="color: #3E8E55; font-weight: 500;">46%</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>Coluna oftálmica</span><span style="color: #3E8E55; font-weight: 500;">44%</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>Guilhotina profissional</span><span style="color: #3E8E55; font-weight: 500;">42%</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>Compressor odontológico</span><span style="color: #3E8E55; font-weight: 500;">40%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSite }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Site" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Gestão do site</h1>
+            <span style="font-size: 13px; color: #6B7684;">Fotos, descrições e vitrine · o que você salva aqui publica no site</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="Site MM Solucoes.dc.html" style="border: 1px solid #D4D9E0; background: #fff; border-radius: 6px; padding: 9px 16px; font-size: 13px; color: #2B3440;">Ver site no ar ↗</a>
+            <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">Publicar alterações</button>
+          </div>
+        </header>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Status do site</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 20px; color: #3E8E55;">No ar</span>
+            <span style="font-size: 12px; color: #6B7684;">última publicação: hoje, 09h40</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Produtos no site</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 20px; color: #16324F;">4 de 16</span>
+            <span style="font-size: 12px; color: #B07514;">12 itens do estoque ainda sem página</span>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #6B7684;">Visitas na semana</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 20px; color: #16324F;">218</span>
+            <span style="font-size: 12px; color: #3E8E55;">9 contatos pelo WhatsApp do site</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.5fr); gap: 20px; align-items: start;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden; min-width: 0;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Produtos</span>
+              <span style="font-size: 12px; color: #6B7684;">puxados do estoque</span>
+            </div>
+            <div style="display: flex; flex-direction: column; font-size: 13px;">
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center; background: #F0F4F9; border-left: 3px solid #16324F;">
+                <span style="font-weight: 500;">Autorrefrator automático Topcon</span>
+                <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px;">No site</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                <span>Cadeira oftalmológica elétrica</span>
+                <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px;">No site</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                <span>Encadernadora industrial</span>
+                <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px;">No site</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                <span>Bateria estacionária 220Ah</span>
+                <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 8px; border-radius: 20px;">No site</span>
+              </div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                <span>Tonômetro de aplanação</span>
+                <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 8px; border-radius: 20px;">Sem foto</span>
+              </div>
+              <div style="padding: 13px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Guilhotina de papel profissional</span>
+                <span style="background: #EDF0F3; color: #6B7684; font-size: 11px; padding: 3px 8px; border-radius: 20px;">Oculto</span>
+              </div>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 22px; display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Editar página do produto</span>
+              <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Exibindo no site</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+              <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                <div style="width: 220px; height: 160px;">
+                  <image-slot id="cms-foto-principal" shape="rounded" radius="8" placeholder="Arraste a foto principal"></image-slot>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <div style="width: 68px; height: 52px;"><image-slot id="cms-foto-2" shape="rounded" radius="6" placeholder="+"></image-slot></div>
+                  <div style="width: 68px; height: 52px;"><image-slot id="cms-foto-3" shape="rounded" radius="6" placeholder="+"></image-slot></div>
+                  <div style="width: 68px; height: 52px;"><image-slot id="cms-foto-4" shape="rounded" radius="6" placeholder="+"></image-slot></div>
+                </div>
+                <span style="font-size: 11px; color: #6B7684;">Arraste as fotos do celular direto para cá</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 260px;">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Título do anúncio no site</label>
+                  <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 14px; color: #2B3440;">Autorrefrator automático Topcon</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Descrição</label>
+                  <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 13px; color: #2B3440; line-height: 1.55; min-height: 74px;">Autorrefrator automático Topcon revisado e testado. Medição de refração e ceratometria, impressora integrada. Acompanha nota fiscal e garantia de 90 dias. Retirada em Maringá/PR ou envio para todo o Brasil com embalagem reforçada.</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                  <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Preço no site</label>
+                    <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 500; color: #16324F;">R$ 18.900</div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Valor de novo (riscado)</label>
+                    <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 14px; color: #2B3440;">R$ 46.000</div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Categoria</label>
+                    <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 14px; color: #2B3440;">Oftalmologia ▾</div>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #F7F8FA; border-radius: 6px; padding: 10px 14px;">
+                  <span style="font-size: 13px; color: #2B3440;">Exibir no site <span style="color: #6B7684;">· sai do ar sozinho quando vender em qualquer canal</span></span>
+                  <span style="width: 38px; height: 22px; border-radius: 20px; background: #3E8E55; position: relative; display: block; flex-shrink: 0;"><span style="position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; display: block;"></span></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                  <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 11px 22px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">Salvar e publicar</button>
+                  <button style="border: 1px solid #D4D9E0; background: #fff; color: #6B7684; border-radius: 6px; padding: 11px 18px; font-family: Jost, sans-serif; font-size: 13px; cursor: pointer;">Descartar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 22px; display: flex; gap: 20px; align-items: start;">
+          <div style="width: 300px; height: 130px; flex-shrink: 0;">
+            <image-slot id="cms-banner-hero" shape="rounded" radius="8" placeholder="Banner principal do site (foto do galpão ou destaque)"></image-slot>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; flex: 1;">
+            <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Banner e textos da página inicial</span>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Chamada principal</label>
+              <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 14px; color: #2B3440;">Equipamentos profissionais com preço de oportunidade</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <label style="font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Subtítulo</label>
+              <div style="border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 12px; font-size: 13px; color: #2B3440;">Compramos lotes em leilões, revisamos cada item e vendemos com nota fiscal e garantia.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCalculadora }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Calculadora de preço" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Calculadora de precificação</h1>
+          <span style="font-size: 13px; color: #6B7684;">Preço sugerido por canal, já descontando taxa da plataforma, comissão de 4% e a margem desejada</span>
+        </header>
+        <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 20px; align-items: start;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 22px; display: flex; flex-direction: column; gap: 18px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Custo do item (arremate + reparo)</label>
+              <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 14px;">
+                <span style="color: #6B7684; font-size: 14px;">R$</span>
+                <input type="number" value="{{ custo }}" onChange="{{ setCusto }}" style="border: none; outline: none; font-family: Archivo, sans-serif; font-weight: 700; font-size: 18px; color: #16324F; width: 100%; background: transparent;">
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Frete / logística estimada</label>
+              <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #D4D9E0; border-radius: 6px; padding: 10px 14px;">
+                <span style="color: #6B7684; font-size: 14px;">R$</span>
+                <input type="number" value="{{ frete }}" onChange="{{ setFrete }}" style="border: none; outline: none; font-family: Archivo, sans-serif; font-weight: 700; font-size: 18px; color: #16324F; width: 100%; background: transparent;">
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #6B7684;">Margem desejada: <span style="color: #16324F; font-weight: 600;">{{ margem }}%</span></label>
+              <input type="range" min="10" max="55" value="{{ margem }}" onChange="{{ setMargem }}" style="width: 100%; accent-color: #16324F;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: #9AA3AE;"><span>10%</span><span>55%</span></div>
+            </div>
+            <div style="background: #F7F8FA; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #6B7684; line-height: 1.5;">Taxas consideradas: Mercado Livre 14% · OLX 5% · venda direta 0% · comissão do vendedor 4% em todos os canais.</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: #fff; border: 2px solid #16324F; border-radius: 8px; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Mercado Livre</span>
+                <span style="font-size: 12px; color: #6B7684;">taxa 14% + comissão 4%</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">{{ precoML }}</span>
+                <span style="font-size: 12px; color: #3E8E55;">lucro {{ lucroML }}</span>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">OLX</span>
+                <span style="font-size: 12px; color: #6B7684;">taxa 5% + comissão 4%</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">{{ precoOLX }}</span>
+                <span style="font-size: 12px; color: #3E8E55;">lucro {{ lucroOLX }}</span>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Venda direta · WhatsApp</span>
+                <span style="font-size: 12px; color: #6B7684;">sem taxa de plataforma + comissão 4%</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #16324F;">{{ precoWA }}</span>
+                <span style="font-size: 12px; color: #3E8E55;">lucro {{ lucroWA }}</span>
+              </div>
+            </div>
+            <div style="background: #FDF3E1; border: 1px solid #E8A33D; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7A5410;">
+              <strong style="font-weight: 500;">Uso no leilão:</strong> invertendo a conta, esse é o valor máximo de lance que mantém a margem. Se o arremate passar do custo digitado, a margem cai abaixo do alvo.
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isExpedicao }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Expedição" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Etiquetas e expedição</h1>
+          <span style="font-size: 13px; color: #6B7684;">2 pedidos aguardando despacho · etiqueta gerada direto do pedido</span>
+        </header>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">#1024 · Coluna oftálmica com refrator</span>
+                <span style="font-size: 12px; color: #6B7684;">Mercado Livre · comprador em Curitiba/PR · envio combinado (transportadora)</span>
+              </div>
+              <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 9px 16px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">Gerar etiqueta</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px; color: #3E8E55;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #E7F4EB; color: #3E8E55; display: flex; align-items: center; justify-content: center; font-size: 12px;">✓</span>NF-e emitida</div>
+              <span style="width: 40px; height: 1px; background: #3E8E55; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #B07514;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #FDF3E1; color: #B07514; display: flex; align-items: center; justify-content: center; font-size: 12px;">2</span>Etiqueta</div>
+              <span style="width: 40px; height: 1px; background: #D4D9E0; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #9AA3AE;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #EDF0F3; color: #9AA3AE; display: flex; align-items: center; justify-content: center; font-size: 12px;">3</span>Embalado</div>
+              <span style="width: 40px; height: 1px; background: #D4D9E0; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #9AA3AE;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #EDF0F3; color: #9AA3AE; display: flex; align-items: center; justify-content: center; font-size: 12px;">4</span>Coletado</div>
+            </div>
+            <div style="background: #F7F8FA; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #6B7684; display: flex; gap: 24px; flex-wrap: wrap;">
+              <span><strong style="font-weight: 500; color: #2B3440;">Peso:</strong> 68 kg</span>
+              <span><strong style="font-weight: 500; color: #2B3440;">Dimensões:</strong> 120 × 60 × 95 cm</span>
+              <span><strong style="font-weight: 500; color: #2B3440;">Embalagem:</strong> engradado de madeira + plástico bolha</span>
+              <span><strong style="font-weight: 500; color: #2B3440;">Prazo de despacho:</strong> até 12/08</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">#1023 · Guilhotina de papel profissional</span>
+                <span style="font-size: 12px; color: #6B7684;">OLX · comprador em Cascavel/PR · Correios PAC</span>
+              </div>
+              <button style="border: 1px solid #D4D9E0; background: #fff; color: #2B3440; border-radius: 6px; padding: 9px 16px; font-family: Jost, sans-serif; font-size: 13px; cursor: pointer;">Imprimir etiqueta novamente</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px; color: #3E8E55;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #E7F4EB; color: #3E8E55; display: flex; align-items: center; justify-content: center; font-size: 12px;">✓</span>NF-e emitida</div>
+              <span style="width: 40px; height: 1px; background: #3E8E55; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #3E8E55;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #E7F4EB; color: #3E8E55; display: flex; align-items: center; justify-content: center; font-size: 12px;">✓</span>Etiqueta</div>
+              <span style="width: 40px; height: 1px; background: #3E8E55; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #3E8E55;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #E7F4EB; color: #3E8E55; display: flex; align-items: center; justify-content: center; font-size: 12px;">✓</span>Embalado</div>
+              <span style="width: 40px; height: 1px; background: #D4D9E0; display: block; margin: 0 8px;"></span>
+              <div style="display: flex; align-items: center; gap: 6px; color: #B07514;"><span style="width: 22px; height: 22px; border-radius: 50%; background: #FDF3E1; color: #B07514; display: flex; align-items: center; justify-content: center; font-size: 12px;">4</span>Aguardando coleta</div>
+            </div>
+            <div style="background: #F7F8FA; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #6B7684; display: flex; gap: 24px; flex-wrap: wrap;">
+              <span><strong style="font-weight: 500; color: #2B3440;">Rastreio:</strong> BR482913557PR</span>
+              <span><strong style="font-weight: 500; color: #2B3440;">Peso:</strong> 22 kg</span>
+              <span><strong style="font-weight: 500; color: #2B3440;">Coleta agendada:</strong> hoje, até 17h</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA; display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Etiquetas de produto e localização</span>
+                <span style="font-size: 12px; color: #6B7684;">O QR code abre a ficha do item no sistema · o local no galpão agiliza a separação</span>
+              </div>
+              <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 9px 16px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">Imprimir etiquetas</button>
+            </div>
+            <div style="display: flex; gap: 20px; padding: 20px; flex-wrap: wrap;">
+              <div style="border: 1.5px dashed #B8BFC7; border-radius: 6px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; background: #fff;">
+                <svg width="76" height="76" viewBox="0 0 29 29" style="flex-shrink: 0;">
+                  <rect x="0" y="0" width="29" height="29" fill="#fff"></rect>
+                  <g fill="#16324F">
+                    <rect x="0" y="0" width="7" height="7"></rect><rect x="22" y="0" width="7" height="7"></rect><rect x="0" y="22" width="7" height="7"></rect>
+                    <rect x="9" y="1" width="2" height="2"></rect><rect x="13" y="0" width="2" height="3"></rect><rect x="17" y="2" width="3" height="2"></rect>
+                    <rect x="9" y="5" width="3" height="2"></rect><rect x="14" y="4" width="2" height="2"></rect><rect x="18" y="6" width="2" height="2"></rect>
+                    <rect x="1" y="9" width="2" height="2"></rect><rect x="5" y="10" width="2" height="3"></rect><rect x="9" y="9" width="2" height="2"></rect>
+                    <rect x="13" y="10" width="3" height="3"></rect><rect x="18" y="9" width="2" height="2"></rect><rect x="22" y="10" width="2" height="2"></rect><rect x="26" y="9" width="2" height="3"></rect>
+                    <rect x="2" y="14" width="3" height="2"></rect><rect x="7" y="15" width="2" height="2"></rect><rect x="11" y="14" width="2" height="2"></rect>
+                    <rect x="16" y="15" width="2" height="3"></rect><rect x="20" y="14" width="3" height="2"></rect><rect x="25" y="15" width="2" height="2"></rect>
+                    <rect x="1" y="18" width="2" height="2"></rect><rect x="5" y="19" width="3" height="2"></rect><rect x="10" y="18" width="2" height="3"></rect>
+                    <rect x="14" y="19" width="2" height="2"></rect><rect x="19" y="18" width="2" height="2"></rect><rect x="23" y="19" width="2" height="2"></rect><rect x="27" y="18" width="2" height="2"></rect>
+                    <rect x="9" y="23" width="2" height="2"></rect><rect x="13" y="22" width="3" height="2"></rect><rect x="17" y="24" width="2" height="2"></rect>
+                    <rect x="21" y="23" width="2" height="3"></rect><rect x="25" y="22" width="2" height="2"></rect><rect x="10" y="27" width="3" height="2"></rect><rect x="15" y="26" width="2" height="2"></rect><rect x="20" y="27" width="2" height="2"></rect><rect x="25" y="26" width="3" height="2"></rect>
+                    <rect x="1" y="1" width="5" height="5" fill="#fff"></rect><rect x="2" y="2" width="3" height="3"></rect>
+                    <rect x="23" y="1" width="5" height="5" fill="#fff"></rect><rect x="24" y="2" width="3" height="3"></rect>
+                    <rect x="1" y="23" width="5" height="5" fill="#fff"></rect><rect x="2" y="24" width="3" height="3"></rect>
+                  </g>
+                </svg>
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; color: #16324F;">MM SOLUÇÕES</span>
+                  <span style="font-size: 13px; color: #2B3440;">Autorrefrator automático Topcon</span>
+                  <span style="font-size: 12px; color: #6B7684;">SKU MM-OFT-1401 · Lote 14</span>
+                  <span style="font-size: 12px; font-weight: 600; color: #D97941;">LOCAL: Corredor A · Prateleira 2</span>
+                </div>
+              </div>
+              <div style="border: 1.5px dashed #B8BFC7; border-radius: 6px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; background: #fff;">
+                <svg width="76" height="76" viewBox="0 0 29 29" style="flex-shrink: 0;">
+                  <rect x="0" y="0" width="29" height="29" fill="#fff"></rect>
+                  <g fill="#16324F">
+                    <rect x="0" y="0" width="7" height="7"></rect><rect x="22" y="0" width="7" height="7"></rect><rect x="0" y="22" width="7" height="7"></rect>
+                    <rect x="10" y="1" width="3" height="2"></rect><rect x="15" y="0" width="2" height="2"></rect><rect x="18" y="3" width="2" height="3"></rect>
+                    <rect x="9" y="6" width="2" height="2"></rect><rect x="13" y="5" width="3" height="2"></rect>
+                    <rect x="2" y="10" width="2" height="2"></rect><rect x="6" y="9" width="2" height="3"></rect><rect x="10" y="10" width="3" height="2"></rect>
+                    <rect x="15" y="9" width="2" height="2"></rect><rect x="19" y="11" width="3" height="2"></rect><rect x="24" y="9" width="2" height="2"></rect><rect x="27" y="12" width="2" height="2"></rect>
+                    <rect x="1" y="14" width="3" height="2"></rect><rect x="6" y="15" width="2" height="2"></rect><rect x="10" y="14" width="2" height="3"></rect>
+                    <rect x="14" y="15" width="3" height="2"></rect><rect x="19" y="14" width="2" height="2"></rect><rect x="23" y="16" width="3" height="2"></rect>
+                    <rect x="2" y="18" width="2" height="3"></rect><rect x="6" y="19" width="2" height="2"></rect><rect x="11" y="18" width="3" height="2"></rect>
+                    <rect x="16" y="19" width="2" height="2"></rect><rect x="20" y="18" width="2" height="3"></rect><rect x="25" y="19" width="2" height="2"></rect>
+                    <rect x="9" y="22" width="2" height="3"></rect><rect x="12" y="24" width="3" height="2"></rect><rect x="17" y="22" width="2" height="2"></rect>
+                    <rect x="20" y="25" width="3" height="2"></rect><rect x="25" y="23" width="2" height="2"></rect><rect x="9" y="27" width="2" height="2"></rect><rect x="14" y="27" width="2" height="2"></rect><rect x="19" y="27" width="3" height="2"></rect><rect x="26" y="27" width="2" height="2"></rect>
+                    <rect x="1" y="1" width="5" height="5" fill="#fff"></rect><rect x="2" y="2" width="3" height="3"></rect>
+                    <rect x="23" y="1" width="5" height="5" fill="#fff"></rect><rect x="24" y="2" width="3" height="3"></rect>
+                    <rect x="1" y="23" width="5" height="5" fill="#fff"></rect><rect x="2" y="24" width="3" height="3"></rect>
+                  </g>
+                </svg>
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; color: #16324F;">MM SOLUÇÕES</span>
+                  <span style="font-size: 13px; color: #2B3440;">Bateria estacionária 220Ah</span>
+                  <span style="font-size: 12px; color: #6B7684;">SKU MM-BAT-0903 · Lote 9</span>
+                  <span style="font-size: 12px; font-weight: 600; color: #D97941;">LOCAL: Corredor C · Piso</span>
+                </div>
+              </div>
+              <div style="border: 1.5px dashed #B8BFC7; border-radius: 6px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; background: #16324F;">
+                <svg width="76" height="76" viewBox="0 0 29 29" style="flex-shrink: 0;">
+                  <rect x="0" y="0" width="29" height="29" fill="#fff"></rect>
+                  <g fill="#16324F">
+                    <rect x="0" y="0" width="7" height="7"></rect><rect x="22" y="0" width="7" height="7"></rect><rect x="0" y="22" width="7" height="7"></rect>
+                    <rect x="9" y="2" width="2" height="3"></rect><rect x="14" y="1" width="3" height="2"></rect><rect x="19" y="4" width="2" height="2"></rect>
+                    <rect x="12" y="6" width="2" height="2"></rect><rect x="16" y="5" width="2" height="3"></rect>
+                    <rect x="1" y="10" width="2" height="3"></rect><rect x="5" y="9" width="3" height="2"></rect><rect x="11" y="11" width="2" height="2"></rect>
+                    <rect x="15" y="9" width="3" height="2"></rect><rect x="20" y="10" width="2" height="3"></rect><rect x="25" y="11" width="3" height="2"></rect>
+                    <rect x="3" y="15" width="2" height="2"></rect><rect x="8" y="14" width="2" height="2"></rect><rect x="12" y="16" width="3" height="2"></rect>
+                    <rect x="18" y="14" width="2" height="3"></rect><rect x="22" y="15" width="2" height="2"></rect><rect x="26" y="14" width="2" height="2"></rect>
+                    <rect x="1" y="19" width="3" height="2"></rect><rect x="7" y="18" width="2" height="2"></rect><rect x="12" y="19" width="2" height="2"></rect>
+                    <rect x="16" y="18" width="3" height="2"></rect><rect x="21" y="19" width="2" height="2"></rect><rect x="26" y="18" width="2" height="3"></rect>
+                    <rect x="10" y="23" width="3" height="2"></rect><rect x="15" y="22" width="2" height="3"></rect><rect x="19" y="24" width="2" height="2"></rect>
+                    <rect x="23" y="22" width="2" height="2"></rect><rect x="26" y="25" width="2" height="2"></rect><rect x="9" y="26" width="2" height="2"></rect><rect x="13" y="27" width="3" height="2"></rect><rect x="18" y="27" width="2" height="2"></rect><rect x="22" y="26" width="3" height="2"></rect>
+                    <rect x="1" y="1" width="5" height="5" fill="#fff"></rect><rect x="2" y="2" width="3" height="3"></rect>
+                    <rect x="23" y="1" width="5" height="5" fill="#fff"></rect><rect x="24" y="2" width="3" height="3"></rect>
+                    <rect x="1" y="23" width="5" height="5" fill="#fff"></rect><rect x="2" y="24" width="3" height="3"></rect>
+                  </g>
+                </svg>
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: #9FB0C2;">Etiqueta de localização</span>
+                  <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; color: #fff;">A · 2</span>
+                  <span style="font-size: 12px; color: #C7D2DD;">Corredor A · Prateleira 2 · Oftalmologia</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 12px 20px; border-top: 1px solid #EDF0F3; font-size: 12px; color: #6B7684;">Ao escanear o QR na separação, o sistema abre a ficha do item e confirma a baixa, evitando o despacho do produto errado. As etiquetas de localização identificam corredores e prateleiras do galpão.</div>
+          </div>
+          <div style="background: #FDF3E1; border: 1px solid #E8A33D; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #7A5410;">
+            <strong style="font-weight: 500;">Regra de reputação:</strong> despachar dentro do prazo mantém o índice de envios em dia do Mercado Livre. O sistema alerta no WhatsApp quando um pedido está a 24 horas do limite.
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isEquipe }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Equipe" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Equipe</h1>
+            <span style="font-size: 13px; color: #6B7684;">Usuários, permissões, treinamento e comissões de venda</span>
+          </div>
+          <button style="border: none; background: #16324F; color: #fff; border-radius: 6px; padding: 10px 18px; font-family: Jost, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;">+ Convidar usuário</button>
+        </header>
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Usuários</span>
+              </div>
+              <div style="display: flex; flex-direction: column; font-size: 13px;">
+                <div style="padding: 14px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-weight: 500;">Anderson Merlos</span>
+                    <span style="color: #6B7684; font-size: 12px;">Proprietário · acesso total, aprova preços e promoções</span>
+                  </div>
+                  <span style="background: #16324F; color: #fff; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Administrador</span>
+                </div>
+                <div style="padding: 14px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-weight: 500;">Operador(a) · a definir</span>
+                    <span style="color: #6B7684; font-size: 12px;">Anúncios, perguntas e expedição · sem acesso a custos</span>
+                  </div>
+                  <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Em treinamento</span>
+                </div>
+                <div style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-weight: 500;">Orbital</span>
+                    <span style="color: #6B7684; font-size: 12px;">Gestão dos canais, relatórios e suporte</span>
+                  </div>
+                  <span style="background: #EDF0F3; color: #6B7684; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Consultoria</span>
+                </div>
+              </div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Comissões do mês · 4% por venda</span>
+                <span style="font-size: 12px; color: #6B7684;">acerto todo dia 5</span>
+              </div>
+              <div style="display: flex; flex-direction: column; font-size: 13px;">
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Pedido #1024 · Coluna oftálmica · R$ 12.500</span><span style="font-weight: 500;">R$ 500</span></div>
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Pedido #1023 · Guilhotina · R$ 2.900</span><span style="font-weight: 500;">R$ 116</span></div>
+                <div style="padding: 12px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Pedido #1022 · Compressor · R$ 4.300</span><span style="font-weight: 500;">R$ 172</span></div>
+                <div style="padding: 12px 20px; display: flex; justify-content: space-between; background: #F7F8FA;"><span style="font-weight: 500;">Total a pagar</span><span style="font-weight: 600; color: #16324F;">R$ 788</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Trilha de treinamento · operador</span>
+            </div>
+            <div style="display: flex; flex-direction: column; font-size: 13px;">
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; align-items: center; gap: 10px;"><span style="color: #3E8E55;">✓</span><span>Semana 1 · Painel, estoque e cadastro de item</span></div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; align-items: center; gap: 10px;"><span style="color: #3E8E55;">✓</span><span>Semana 2 · Criar e editar anúncios (ML e OLX)</span></div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; align-items: center; gap: 10px;"><span style="color: #B07514;">●</span><span>Semana 3 · Perguntas, modelos e negociação no chat</span></div>
+              <div style="padding: 13px 20px; border-bottom: 1px solid #EDF0F3; display: flex; align-items: center; gap: 10px;"><span style="color: #9AA3AE;">○</span><span>Semana 4 · Pedidos, NF-e e expedição</span></div>
+              <div style="padding: 13px 20px; display: flex; align-items: center; gap: 10px;"><span style="color: #9AA3AE;">○</span><span>Semana 5 · Relatórios e rotina autônoma</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isIntegracoes }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Integrações" style="display: flex; flex-direction: column; gap: 20px;">
+        <header style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: 22px; color: #16324F;">Integrações e APIs</h1>
+          <span style="font-size: 13px; color: #6B7684;">Conexões oficiais com cada canal · sincronização automática</span>
+        </header>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Mercado Livre · API oficial</span>
+              <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Conectado</span>
+            </div>
+            <span style="font-size: 13px; color: #6B7684; line-height: 1.5;">Autenticação OAuth na conta da MM Soluções. Sincroniza anúncios, perguntas, pedidos e reputação. Notificações em tempo real (webhooks): uma pergunta nova aparece aqui em segundos.</span>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2B3440;">
+              <span>✓ Publicação e edição de anúncios</span>
+              <span>✓ Perguntas e respostas</span>
+              <span>✓ Pedidos e status de envio</span>
+              <span>✓ Métricas de visitas e reputação</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">OLX · API de importação de anúncios</span>
+              <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Conectado</span>
+            </div>
+            <span style="font-size: 13px; color: #6B7684; line-height: 1.5;">Integração oficial de anúncios (autoupload): o cadastro feito aqui é publicado e atualizado na OLX automaticamente. Chats de negociação acompanhados pelo painel unificado.</span>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2B3440;">
+              <span>✓ Publicação e atualização de anúncios</span>
+              <span>✓ Pausa automática quando o item vende em outro canal</span>
+              <span>✓ Alertas de mensagem de comprador</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">WhatsApp Business</span>
+              <span style="background: #FDF3E1; color: #B07514; font-size: 11px; padding: 3px 10px; border-radius: 20px;">Vinculado</span>
+            </div>
+            <span style="font-size: 13px; color: #6B7684; line-height: 1.5;">Número comercial da MM Soluções com catálogo e etiquetas. Conversas de venda registradas como pedidos manuais, preservando o histórico e permitindo medir o canal.</span>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2B3440;">
+              <span>✓ Catálogo de produtos</span>
+              <span>✓ Respostas rápidas padronizadas</span>
+              <span>✓ Registro de venda direta no painel</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Google · Perfil da Empresa</span>
+              <span style="background: #E7F4EB; color: #3E8E55; font-size: 11px; padding: 3px 10px; border-radius: 20px;">No ar</span>
+            </div>
+            <span style="font-size: 13px; color: #6B7684; line-height: 1.5;">Perfil da MM Soluções no Google e no Maps, para que o comprador que pesquisa a empresa antes de fechar encontre endereço, telefone e avaliações.</span>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2B3440;">
+              <span>✓ Endereço, horários e WhatsApp</span>
+              <span>✓ Pedido de avaliação pós-venda automático</span>
+              <span>✓ Monitoramento de buscas pela marca</span>
+            </div>
+          </div>
+          <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Emissão de NF-e</span>
+              <span style="background: #EDF0F3; color: #6B7684; font-size: 11px; padding: 3px 10px; border-radius: 20px;">A configurar</span>
+            </div>
+            <span style="font-size: 13px; color: #6B7684; line-height: 1.5;">Conexão com o emissor fiscal (contador ou sistema próprio) para gerar a NF-e do pedido em um clique, com os dados do comprador puxados do canal.</span>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2B3440;">
+              <span>○ Definir emissor com o contador da MM</span>
+              <span>○ Vincular certificado digital A1</span>
+            </div>
+          </div>
+        </div>
+        <div style="background: #fff; border: 1px solid #E0E4EA; border-radius: 8px; overflow: hidden;">
+          <div style="padding: 16px 20px; border-bottom: 1px solid #E0E4EA;">
+            <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #16324F;">Registro de sincronização</span>
+          </div>
+          <div style="display: flex; flex-direction: column; font-size: 13px;">
+            <div style="padding: 11px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Mercado Livre · 2 perguntas novas importadas</span><span style="color: #6B7684;">há 4 min</span></div>
+            <div style="padding: 11px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>OLX · anúncio "Guilhotina profissional" atualizado (preço)</span><span style="color: #6B7684;">há 26 min</span></div>
+            <div style="padding: 11px 20px; border-bottom: 1px solid #EDF0F3; display: flex; justify-content: space-between;"><span>Mercado Livre · pedido #1024 confirmado · estoque baixado</span><span style="color: #6B7684;">há 1h</span></div>
+            <div style="padding: 11px 20px; display: flex; justify-content: space-between;"><span>OLX · item vendido no ML pausado automaticamente</span><span style="color: #6B7684;">há 1h</span></div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'visao', custo: 3300, frete: 250, margem: 35 };
+  renderVals() {
+    const s = this.state.screen;
+    const go = (screen) => () => this.setState({ screen });
+    const brl = (v) => isFinite(v) && v > 0 ? 'R$ ' + Math.round(v).toLocaleString('pt-BR') : '—';
+    const COM = 0.04, base = (Number(this.state.custo) || 0) + (Number(this.state.frete) || 0), m = this.state.margem / 100;
+    const preco = (taxa) => { const d = 1 - taxa - COM - m; return d > 0.05 ? base / d : NaN; };
+    const pML = preco(0.14), pOLX = preco(0.05), pWA = preco(0);
+    return {
+      custo: this.state.custo, frete: this.state.frete, margem: this.state.margem,
+      setCusto: (e) => this.setState({ custo: e.target.value }),
+      setFrete: (e) => this.setState({ frete: e.target.value }),
+      setMargem: (e) => this.setState({ margem: Number(e.target.value) }),
+      precoML: brl(pML), precoOLX: brl(pOLX), precoWA: brl(pWA),
+      lucroML: brl(pML * m), lucroOLX: brl(pOLX * m), lucroWA: brl(pWA * m),
+      isVisao: s === 'visao', isAnuncios: s === 'anuncios', isPerguntas: s === 'perguntas',
+      isPedidos: s === 'pedidos', isEstoque: s === 'estoque', isRelatorios: s === 'relatorios',
+      isIntegracoes: s === 'integracoes', isItens: s === 'itens', isEquipe: s === 'equipe',
+      isCalculadora: s === 'calculadora', isExpedicao: s === 'expedicao',
+      isSite: s === 'site', goSite: go('site'),
+      goCalculadora: go('calculadora'), goExpedicao: go('expedicao'),
+      goVisao: go('visao'), goAnuncios: go('anuncios'), goPerguntas: go('perguntas'),
+      goPedidos: go('pedidos'), goEstoque: go('estoque'), goRelatorios: go('relatorios'),
+      goIntegracoes: go('integracoes'), goItens: go('itens'), goEquipe: go('equipe'),
+    };
+  }
+}
+</script>
+</body>
+</html>

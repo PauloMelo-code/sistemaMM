@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(claude:*)",
+      "WebFetch(domain:developers.mercadolivre.com.br)",
+      "WebFetch(domain:developers.olx.com.br)",
+      "Bash(node scripts/project-map.mjs)",
+      "Bash(node scripts/docs-check.mjs)",
+      "Bash(node scripts/check-compliance.mjs)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "ruflo"
+  ]
+}

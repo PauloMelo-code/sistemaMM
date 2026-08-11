@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "idx_pedidos_item_ativo" ON "pedidos" USING btree ("item_id") WHERE "pedidos"."is_deleted" = false AND "pedidos"."status" <> 'cancelado';

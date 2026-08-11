@@ -1,0 +1,188 @@
+# CI/CD — Estrutura Base
+#
+# Logica (espelha o CLAUDE.md):
+#   push em `develop` -> CI -> Deploy HML (Homologacao)
+#   push em `master`  -> CI -> Deploy PRD (Producao), com BACKUP do banco antes
+#
+# Pipeline obrigatorio: Lint -> Type Check -> Testes -> Build -> Deploy (SSH VPS).
+#
+# Secrets necessarios (configurar em Settings > Secrets and variables > Actions,
+# preferencialmente por Environment `hml` e `prd`):
+#   HML_SSH_HOST / HML_SSH_USER / HML_SSH_KEY / HML_KNOWN_HOSTS / HML_APP_DIR
+#   PRD_SSH_HOST / PRD_SSH_USER / PRD_SSH_KEY / PRD_KNOWN_HOSTS / PRD_APP_DIR
+#   PRD_DATABASE_URL   (string de conexao usada no pg_dump antes do deploy PRD)
+#
+# OBS: este e o pipeline-template da base. Ele assume os scripts npm padrao
+# (`lint`, `test`, `build`) e `tsc`. Eles passam a existir quando a app Next.js
+# for adicionada em `src/` com seu package.json.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [develop, master]
+  workflow_dispatch:
+
+# Evita dois deploys simultaneos no mesmo ambiente.
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) CI — roda em TODA push (develop e master)
+  # ---------------------------------------------------------------------------
+  ci:
+    name: Lint + Type Check + Testes + Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # >= 22.18: `node --test` roda .ts direto (type stripping) e aceita glob.
+          # Com Node 20 o `npm test` deste projeto nem parseia src/lib/pricing.test.ts.
+          node-version: "24"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        # `npm run typecheck` = `next typegen && tsc --noEmit`. Os tipos de rota
+        # do Next 16 (LayoutProps/PageProps) sao GERADOS: no checkout limpo do CI
+        # `tsc` sozinho quebra em src/app/layout.tsx (TS2304 LayoutProps).
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 2) Deploy HML — somente branch develop
+  # ---------------------------------------------------------------------------
+  deploy-hml:
+    name: Deploy HML (Homologacao)
+    needs: ci
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: hml
+    steps:
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HML_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.HML_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy na VPS HML
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.HML_SSH_USER }}@${{ secrets.HML_SSH_HOST }}" \
+            "set -e; \
+             cd '${{ secrets.HML_APP_DIR }}'; \
+             git fetch --all; \
+             git reset --hard origin/develop; \
+             npm ci; \
+             npm run build; \
+             npm run db:migrate --if-present; \
+             pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js"
+
+  # ---------------------------------------------------------------------------
+  # 3) Deploy PRD — somente branch master, com BACKUP do banco ANTES
+  # ---------------------------------------------------------------------------
+  deploy-prd:
+    name: Deploy PRD (Producao)
+    needs: ci
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: prd
+    steps:
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PRD_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.PRD_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # =======================================================================
+      # Disaster Recovery (CLAUDE.md): SEMPRE backup ANTES do deploy PRD, e o
+      # backup NUNCA pode ficar so no mesmo servidor do banco.
+      #
+      # O dump NAO passa pelo runner do GitHub e NAO vira artifact.
+      # Um artifact do Actions e baixavel por QUALQUER pessoa com acesso de
+      # leitura ao repositorio e fica hospedado por semanas. Um dump de producao
+      # carrega nome, endereco, CNPJ e valor de venda de cliente real: isso nao
+      # sai do perimetro. A copia off-server e feita HOST -> DESTINO, direto,
+      # sem intermediario.
+      #
+      # PRE-REQUISITO OPERACIONAL (uma vez, fora do CI):
+      #   a VPS de banco precisa ter chave SSH propria autorizada no destino de
+      #   backup. O CI so dispara o comando; ele nao carrega credencial nenhuma
+      #   do destino.
+      # Secret necessario: PRD_BACKUP_DEST  (ex.: "backup@10.0.0.9:/srv/backups/mm")
+      # =======================================================================
+      - name: Definir nome do backup
+        id: bk
+        run: echo "file=backup_$(date +%d_%m_%Y_%H_%M).sql" >> "$GITHUB_OUTPUT"
+
+      - name: Exigir destino de backup off-server
+        env:
+          DEST: ${{ secrets.PRD_BACKUP_DEST }}
+        run: |
+          if [ -z "$DEST" ]; then
+            echo "::error::PRD_BACKUP_DEST nao configurado."
+            echo "A regra de DR do CLAUDE.md exige copia do backup FORA do servidor do banco."
+            echo "Sem destino off-server, o deploy em producao NAO prossegue."
+            exit 1
+          fi
+
+      - name: Backup do banco no host (obrigatorio antes do PRD)
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
+            "set -e; \
+             mkdir -p ~/Documents/DB_backups; \
+             pg_dump '${{ secrets.PRD_DATABASE_URL }}' \
+               --no-owner --no-acl --clean --if-exists \
+               --file=\"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\""
+
+      # Dump vazio "com sucesso" e a falha silenciosa classica de DR: so se
+      # descobre no dia do restore. 1 KB e generoso — o schema sozinho ja passa.
+      - name: Conferir que o dump nao esta vazio
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
+            "set -e; \
+             f=\"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\"; \
+             bytes=\$(wc -c < \"\$f\"); \
+             echo \"backup: \$bytes bytes\"; \
+             if [ \"\$bytes\" -lt 1024 ]; then echo 'BACKUP SUSPEITO (< 1KB)'; exit 1; fi; \
+             grep -q 'PostgreSQL database dump' \"\$f\" || { echo 'nao parece um dump'; exit 1; }"
+
+      # Copia HOST -> DESTINO. O dump nunca toca a infraestrutura do GitHub.
+      - name: Copiar backup para FORA do servidor do banco (regra DR)
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
+            "set -e; \
+             scp -o StrictHostKeyChecking=yes \
+               \"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\" \
+               '${{ secrets.PRD_BACKUP_DEST }}/${{ steps.bk.outputs.file }}'"
+
+      - name: Deploy na VPS PRD
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
+            "set -e; \
+             cd '${{ secrets.PRD_APP_DIR }}'; \
+             git fetch --all; \
+             git reset --hard origin/master; \
+             npm ci; \
+             npm run build; \
+             npm run db:migrate --if-present; \
+             pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js"

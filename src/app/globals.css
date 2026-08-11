@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Tokens do design system MM Solucoes — fonte: docs/design-system.md (bloco YAML).
+   Tema claro unico: nao adicionar variantes dark.
+   Mudou token aqui -> atualizar o bloco do doc na mesma alteracao. */
+@theme {
+  /* Marca */
+  --color-navy: #16324F;
+  --color-navy-deep: #0E2136;
+  --color-orange: #D97941;
+
+  /* Texto */
+  --color-ink: #2B3440;
+  --color-ink-2: #6B7684;
+  --color-on-navy: #C7D2DD;
+  --color-on-navy-2: #9FB0C2;
+
+  /* Superficies */
+  --color-page: #EDEFF2;
+  --color-card: #FFFFFF;
+  --color-table-head: #F7F8FA;
+  --color-row-selected: #F0F4F9;
+  --color-border: #E0E4EA;
+  --color-divider: #EDF0F3;
+  --color-border-input: #D4D9E0;
+
+  /* Semanticas */
+  --color-success: #3E8E55;
+  --color-success-soft: #E7F4EB;
+  --color-online: #5FBF77;
+  --color-warning: #E8A33D;
+  --color-warning-text: #B07514;
+  --color-warning-soft: #FDF3E1;
+  --color-warning-note: #7A5410;
+  --color-pending-bg: #FDF9F0;
+  --color-danger: #B03A3A;
+  --color-danger-soft: #FDE8E8;
+  --color-info: #2C6199;
+  --color-info-soft: #E3EEF9;
+  --color-whatsapp: #1FA855;
+
+  /* Raio — escala fechada. Valor fora dela e erro. */
+  --radius-card: 8px;
+  --radius-button: 6px;
+  --radius-pill: 20px;
+
+  /* Tipografia — vars vindas do next/font em src/app/layout.tsx */
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+/* Numero de tabela/KPI alinhado em coluna: use a utility nativa do Tailwind
+   `tabular-nums` — nao criar alias local. */
