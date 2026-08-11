@@ -24,9 +24,41 @@ tentou refuta-lo lendo o codigo. O que sobreviveu:
   `next build` avalia toda rota para coletar page data. O passo Build nao tinha
   bloco `env:`. Como `deploy-hml` e `deploy-prd` tem `needs: ci`, **nenhum
   deploy jamais executou**. Reproduzido nos dois sentidos.
-- **✅ CORRIGIDO — `ecosystem.config.js` nao existia** e o deploy termina em
-  `pm2 ... ecosystem.config.js`. Como o passo anterior e `db:migrate`, o deploy
-  aplicava a migracao e so entao morria: banco novo, aplicacao velha no ar.
+- **✅ RESOLVIDO DE OUTRO JEITO — o modelo de deploy passou a ser EasyPanel.**
+  O `ecosystem.config.js` nao existia e o deploy terminava em
+  `pm2 ... ecosystem.config.js`; cheguei a escreve-lo, e ele durou uma hora.
+  **Decisao do Paulo em 2026-08-11:** publicar pelo EasyPanel, que constroi
+  container. Os dois jobs de deploy por SSH e o `ecosystem.config.js` foram
+  removidos — a auditoria ja apontava "dois modelos incompativeis convivendo", e
+  manter um caminho comprovadamente morto seria pior agora. Ficou: `Dockerfile`
+  multi-stage com `output: "standalone"`, `.dockerignore`, `scripts/migrar.mjs`
+  e o job `ci` como unico portao automatico.
+  - **As tres decisoes do `ecosystem.config.js` NAO se perderam, mudaram de
+    lugar** — e se nao forem repetidas na UI do EasyPanel somem em silencio:
+    `instances: 1` vira **Replicas = 1** (o portao de 429 do ML e memoria de
+    processo, e o limite de tentativas de login tambem), `NODE_ENV=production` e
+    `TZ=America/Sao_Paulo` viram `ENV` do Dockerfile.
+  - **⚠️ `MINIO_PUBLIC_URL` e variavel de BUILD, nao de runtime.** O
+    `next.config.ts` monta `images.remotePatterns` na carga da config; ausente,
+    devolve `[]` em silencio e a imagem sai recusando toda foto. Passar depois
+    nao adianta: o valor foi cozido no build. Entra como `--build-arg`.
+  - **⚠️ A migracao NAO roda no boot do container**, de proposito: erro de
+    schema viraria laco de reinicio. E comando pontual (`node scripts/migrar.mjs`),
+    e usa o migrador do `drizzle-orm` porque o `drizzle-kit` e dependencia de
+    desenvolvimento e nao entra na imagem.
+
+- **✅ CORRIGIDO — nao havia healthcheck.** `GET /api/saude` faz `SELECT 1` e
+  responde 200/503, e o Dockerfile a usa. Publica e sem segredo (quem consulta e
+  o orquestrador, sem cookie), e por isso nao revela nada.
+  - **O `SELECT 1` nao e decoracao:** sem tocar o banco, a rota responderia 200
+    com o Postgres fora do ar. Verificado parando o container: 200 → **503** →
+    200 quando voltou.
+  - **⚠️ ARMADILHA QUE JA MORDEU, em 20 minutos de vida:** a rota nasceu DENTRO
+    do matcher do porteiro e respondia **307 para /login**. O Docker leria isso
+    como container doente e reiniciaria a aplicacao **em laco, para sempre** —
+    uma app perfeitamente saudavel derrubada pelo proprio porteiro. Achado ao
+    subir o bundle standalone de verdade, nao revisando codigo. `api/saude` esta
+    na lista de excecoes do `proxy.ts`; nao tire.
 - **✅ CORRIGIDO — ninguem conseguia criar o primeiro usuario.** Ver a entrada
   do Better Auth.
 - **🔴 ABERTO — nada agenda o worker.** Varredura de cron, `setInterval` e

@@ -1,0 +1,38 @@
+# O que NAO entra no contexto de build.
+#
+# Nao e so tamanho: `.env` aqui significaria segredo de producao cozido numa
+# camada de imagem, de onde nao sai mais — `docker history` mostra o conteudo
+# mesmo depois de um `rm` numa camada seguinte.
+
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+out
+build
+*.tsbuildinfo
+next-env.d.ts
+
+.git
+.github
+.claude
+
+# Prototipo hi-fi: 121 KB de HTML de referencia, nao codigo de producao.
+design_handoff_sistema_mm
+
+docs
+templates
+*.md
+!package.json
+
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Lixo de redirecionamento de shell mal citado na raiz (ver .gitignore).
+/*)
+/$*
+/{*
+/[0-9]*

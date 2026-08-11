@@ -60,10 +60,17 @@ export const config = {
    *   login acontece, e quem esta fazendo login ainda nao tem cookie. Sem esta
    *   excecao o `POST /api/auth/sign-in/email` seria redirecionado para
    *   /login — o login mandando para o login, em laco.
+   * - `/api/saude` — healthcheck. OBRIGATORIO, e ja mordeu: sem a excecao a
+   *   rota responde 307 para /login, o Docker le isso como container doente e
+   *   o orquestrador reinicia a aplicacao em laco, PARA SEMPRE — uma app
+   *   perfeitamente saudavel derrubada pelo proprio porteiro. Descoberto ao
+   *   subir o bundle standalone, nao revisando codigo.
    * - `/api/integracoes/*` — chamadas de MAQUINA (webhook, worker, OAuth de
    *   canal). Tem porteiro proprio por segredo; exigir cookie aqui quebraria o
    *   webhook do ML, que obviamente nao tem sessao.
    * - estaticos e imagem — nao ha o que proteger e custa latencia em toda carga.
    */
-  matcher: ["/((?!api/auth|api/integracoes|_next/static|_next/image|favicon.ico|icon.png).*)"],
+  matcher: [
+    "/((?!api/auth|api/saude|api/integracoes|_next/static|_next/image|favicon.ico|icon.png).*)",
+  ],
 };

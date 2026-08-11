@@ -33,6 +33,18 @@ function hostDasFotos() {
 }
 
 const nextConfig: NextConfig = {
+  /**
+   * Empacota a app com so o que ela usa em `.next/standalone`, incluindo um
+   * `server.js` proprio. E o que permite a imagem do EasyPanel nao carregar o
+   * `node_modules` inteiro (centenas de MB de dependencia de build que nunca
+   * rodam em producao).
+   *
+   * ⚠️ O standalone NAO copia `.next/static` nem `public/` — o Dockerfile faz
+   * isso a mao. Esquecer resulta numa app que sobe, responde, e serve HTML sem
+   * CSS nem imagem: parece rede, e e build.
+   */
+  output: "standalone",
+
   images: {
     remotePatterns: hostDasFotos(),
   },

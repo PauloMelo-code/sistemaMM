@@ -1,37 +1,38 @@
-# CI/CD — Estrutura Base
+# CI — Sistema MM Solucoes
 #
-# Logica (espelha o CLAUDE.md):
-#   push em `develop` -> CI -> Deploy HML (Homologacao)
-#   push em `master`  -> CI -> Deploy PRD (Producao), com BACKUP do banco antes
+# ESTE ARQUIVO NAO FAZ DEPLOY. Quem publica e o EasyPanel, que puxa do
+# repositorio e constroi a imagem pelo `Dockerfile` da raiz.
 #
-# Pipeline obrigatorio: Lint -> Type Check -> Testes -> Build -> Deploy (SSH VPS).
+# Ate 2026-08-11 havia aqui dois jobs de deploy por SSH (`git reset --hard` +
+# `npm ci` + `npm run build` + pm2) que **nunca chegaram a rodar** — o job `ci`
+# falhava sempre no passo Build por falta de DATABASE_URL, e como os dois tinham
+# `needs: ci`, nada abaixo executava. Foram removidos junto com o
+# `ecosystem.config.js` quando o modelo de deploy virou EasyPanel: manter no
+# repositorio um caminho de deploy comprovadamente morto e como manter uma
+# tomada sem fio na parede.
 #
-# Secrets necessarios (configurar em Settings > Secrets and variables > Actions,
-# preferencialmente por Environment `hml` e `prd`):
-#   HML_SSH_HOST / HML_SSH_USER / HML_SSH_KEY / HML_KNOWN_HOSTS / HML_APP_DIR
-#   PRD_SSH_HOST / PRD_SSH_USER / PRD_SSH_KEY / PRD_KNOWN_HOSTS / PRD_APP_DIR
-#   PRD_DATABASE_URL   (string de conexao usada no pg_dump antes do deploy PRD)
+# O QUE ESTE JOB FAZ: impedir que codigo quebrado chegue na branch que o
+# EasyPanel publica. E o unico portao automatico que existe hoje.
 #
-# OBS: este e o pipeline-template da base. Ele assume os scripts npm padrao
-# (`lint`, `test`, `build`) e `tsc`. Eles passam a existir quando a app Next.js
-# for adicionada em `src/` com seu package.json.
+# ⚠️ O QUE ELE **NAO** COBRE, e vale saber antes de confiar: nao roda
+# `check-compliance.mjs`, nao aplica as migracoes contra um banco descartavel e
+# nao executa as provas de `scripts/db/*.sql`. Os 143 testes sao todos de modulo
+# PURO — nenhum toca banco, HTTP ou tela. Verde aqui significa "compila e as
+# funcoes puras batem", nao "funciona".
 
-name: CI/CD
+name: CI
 
 on:
   push:
     branches: [develop, master]
+  pull_request:
   workflow_dispatch:
 
-# Evita dois deploys simultaneos no mesmo ambiente.
 concurrency:
-  group: cicd-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # 1) CI — roda em TODA push (develop e master)
-  # ---------------------------------------------------------------------------
   ci:
     name: Lint + Type Check + Testes + Build
     runs-on: ubuntu-latest
@@ -42,8 +43,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          # >= 22.18: `node --test` roda .ts direto (type stripping) e aceita glob.
-          # Com Node 20 o `npm test` deste projeto nem parseia src/lib/pricing.test.ts.
+          # >= 22.18: `node --test` roda .ts direto (type stripping) e aceita
+          # glob. Com Node 20 o `npm test` deste projeto nem parseia os testes.
           node-version: "24"
           cache: npm
 
@@ -55,145 +56,33 @@ jobs:
 
       - name: Type Check
         # `npm run typecheck` = `next typegen && tsc --noEmit`. Os tipos de rota
-        # do Next 16 (LayoutProps/PageProps) sao GERADOS: no checkout limpo do CI
-        # `tsc` sozinho quebra em src/app/layout.tsx (TS2304 LayoutProps).
+        # do Next 16 (LayoutProps/PageProps) sao GERADOS: no checkout limpo do
+        # CI o `tsc` sozinho quebra em src/app/layout.tsx (TS2304 LayoutProps).
         run: npm run typecheck
 
       - name: Testes
         run: npm test
 
+      - name: Conformidade com as regras da base
+        # Barra Prisma, SQLite, delete fisico, tabela sem colunas de auditoria,
+        # arquivo acima de 500 linhas e segredo hardcoded. Rodava so na mao.
+        run: node scripts/check-compliance.mjs
+
       - name: Build
-        # `src/lib/db/index.ts:13-20` valida DATABASE_URL na AVALIACAO do modulo,
-        # e o `next build` avalia toda rota para coletar page data — entao o
-        # build quebra sem a variavel, mesmo sem nunca conectar. Sem este bloco
-        # o job `ci` falha SEMPRE, e como `deploy-hml` e `deploy-prd` tem
-        # `needs: ci`, nenhum deploy jamais chega a rodar.
-        #
-        # O valor e de fachada de proposito: o Pool e criado preguicosamente e
-        # nao abre conexao durante o build. Secret de verdade aqui seria expor
-        # credencial de producao a um job que nao precisa dela.
+        # `src/lib/db/index.ts` valida DATABASE_URL na AVALIACAO do modulo, e o
+        # `next build` avalia toda rota para coletar page data — entao o build
+        # quebra sem a variavel, mesmo sem nunca conectar. Valor de fachada de
+        # proposito: o Pool nao abre conexao durante o build, e secret de
+        # verdade aqui exporia credencial a um job que nao precisa dela.
         env:
           DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+          # Lida em tempo de BUILD pelo next.config.ts (images.remotePatterns).
+          # Ausente, a app sai recusando toda foto — aqui so precisa ser valida.
+          MINIO_PUBLIC_URL: http://minio.invalid:9000
         run: npm run build
 
-  # ---------------------------------------------------------------------------
-  # 2) Deploy HML — somente branch develop
-  # ---------------------------------------------------------------------------
-  deploy-hml:
-    name: Deploy HML (Homologacao)
-    needs: ci
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    environment: hml
-    steps:
-      - name: Configurar SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HML_SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          echo "${{ secrets.HML_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Deploy na VPS HML
-        run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.HML_SSH_USER }}@${{ secrets.HML_SSH_HOST }}" \
-            "set -e; \
-             cd '${{ secrets.HML_APP_DIR }}'; \
-             git fetch --all; \
-             git reset --hard origin/develop; \
-             npm ci; \
-             npm run build; \
-             npm run db:migrate --if-present; \
-             pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js"
-
-  # ---------------------------------------------------------------------------
-  # 3) Deploy PRD — somente branch master, com BACKUP do banco ANTES
-  # ---------------------------------------------------------------------------
-  deploy-prd:
-    name: Deploy PRD (Producao)
-    needs: ci
-    if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    environment: prd
-    steps:
-      - name: Configurar SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.PRD_SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          echo "${{ secrets.PRD_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      # =======================================================================
-      # Disaster Recovery (CLAUDE.md): SEMPRE backup ANTES do deploy PRD, e o
-      # backup NUNCA pode ficar so no mesmo servidor do banco.
-      #
-      # O dump NAO passa pelo runner do GitHub e NAO vira artifact.
-      # Um artifact do Actions e baixavel por QUALQUER pessoa com acesso de
-      # leitura ao repositorio e fica hospedado por semanas. Um dump de producao
-      # carrega nome, endereco, CNPJ e valor de venda de cliente real: isso nao
-      # sai do perimetro. A copia off-server e feita HOST -> DESTINO, direto,
-      # sem intermediario.
-      #
-      # PRE-REQUISITO OPERACIONAL (uma vez, fora do CI):
-      #   a VPS de banco precisa ter chave SSH propria autorizada no destino de
-      #   backup. O CI so dispara o comando; ele nao carrega credencial nenhuma
-      #   do destino.
-      # Secret necessario: PRD_BACKUP_DEST  (ex.: "backup@10.0.0.9:/srv/backups/mm")
-      # =======================================================================
-      - name: Definir nome do backup
-        id: bk
-        run: echo "file=backup_$(date +%d_%m_%Y_%H_%M).sql" >> "$GITHUB_OUTPUT"
-
-      - name: Exigir destino de backup off-server
-        env:
-          DEST: ${{ secrets.PRD_BACKUP_DEST }}
-        run: |
-          if [ -z "$DEST" ]; then
-            echo "::error::PRD_BACKUP_DEST nao configurado."
-            echo "A regra de DR do CLAUDE.md exige copia do backup FORA do servidor do banco."
-            echo "Sem destino off-server, o deploy em producao NAO prossegue."
-            exit 1
-          fi
-
-      - name: Backup do banco no host (obrigatorio antes do PRD)
-        run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
-            "set -e; \
-             mkdir -p ~/Documents/DB_backups; \
-             pg_dump '${{ secrets.PRD_DATABASE_URL }}' \
-               --no-owner --no-acl --clean --if-exists \
-               --file=\"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\""
-
-      # Dump vazio "com sucesso" e a falha silenciosa classica de DR: so se
-      # descobre no dia do restore. 1 KB e generoso — o schema sozinho ja passa.
-      - name: Conferir que o dump nao esta vazio
-        run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
-            "set -e; \
-             f=\"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\"; \
-             bytes=\$(wc -c < \"\$f\"); \
-             echo \"backup: \$bytes bytes\"; \
-             if [ \"\$bytes\" -lt 1024 ]; then echo 'BACKUP SUSPEITO (< 1KB)'; exit 1; fi; \
-             grep -q 'PostgreSQL database dump' \"\$f\" || { echo 'nao parece um dump'; exit 1; }"
-
-      # Copia HOST -> DESTINO. O dump nunca toca a infraestrutura do GitHub.
-      - name: Copiar backup para FORA do servidor do banco (regra DR)
-        run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
-            "set -e; \
-             scp -o StrictHostKeyChecking=yes \
-               \"\$HOME/Documents/DB_backups/${{ steps.bk.outputs.file }}\" \
-               '${{ secrets.PRD_BACKUP_DEST }}/${{ steps.bk.outputs.file }}'"
-
-      - name: Deploy na VPS PRD
-        run: |
-          ssh -i ~/.ssh/id_deploy "${{ secrets.PRD_SSH_USER }}@${{ secrets.PRD_SSH_HOST }}" \
-            "set -e; \
-             cd '${{ secrets.PRD_APP_DIR }}'; \
-             git fetch --all; \
-             git reset --hard origin/master; \
-             npm ci; \
-             npm run build; \
-             npm run db:migrate --if-present; \
-             pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js"
+      - name: Imagem de producao constroi
+        # O que o EasyPanel vai fazer. Sem este passo, um Dockerfile quebrado so
+        # aparece no deploy — e o build da imagem e justamente onde moram as
+        # armadilhas (MINIO_PUBLIC_URL como build arg, copia de .next/static).
+        run: docker build --build-arg MINIO_PUBLIC_URL=http://minio.invalid:9000 -t mm-solucoes:ci .
