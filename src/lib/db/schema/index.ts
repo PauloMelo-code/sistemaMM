@@ -5,6 +5,7 @@
  * Ordem = dependencia de FK: lotes -> itens -> anuncios/perguntas/pedidos.
  */
 export * from "./usuarios";
+export * from "./usuarios-sessoes";
 export * from "./lotes";
 export * from "./itens";
 export * from "./itens-fotos";
@@ -15,3 +16,4 @@ export * from "./auditoria";
 export * from "./integracoes-eventos";
 export * from "./integracoes-credenciais";
 export * from "./integracoes-tarefas";
+export * from "./integracoes-sincronizacoes";

@@ -9,7 +9,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
-  pgTable, pgEnum, uuid, text, boolean, timestamp, index, uniqueIndex,
+  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // administrador = Anderson (ve tudo) | operador = sem custo (RN-107) | consultoria = Orbital
@@ -32,6 +32,27 @@ export const usuarios = pgTable(
     email: text("email").notNull(),
     papel: papelUsuarioEnum("papel").notNull(),
     ativo: boolean("ativo").notNull().default(true),
+
+    /**
+     * Hash da senha (scrypt, ver `src/lib/auth/senha.ts`).
+     *
+     * NULLABLE de proposito, e isso e uma protecao: usuario sem senha NAO
+     * consegue entrar. E o que mantem o usuario-sistema das integracoes
+     * permanentemente impossibilitado de logar, e o que permite cadastrar uma
+     * pessoa antes de definir a credencial dela.
+     */
+    senha_hash: text("senha_hash"),
+
+    /**
+     * Tentativas de login malsucedidas desde o ultimo acerto.
+     *
+     * Contado no BANCO e nao em memoria: contador em memoria zera a cada deploy
+     * e nao existe entre instancias — ou seja, some justamente quando ha mais de
+     * um alvo para tentar.
+     */
+    tentativas_falhas: integer("tentativas_falhas").notNull().default(0),
+    /** Ate quando o login esta bloqueado. Nulo = liberado. */
+    bloqueado_ate: timestamp("bloqueado_ate"),
 
     // --- colunas de auditoria OBRIGATORIAS (nunca omitir) ---
     created_at: timestamp("created_at").notNull().defaultNow(),
