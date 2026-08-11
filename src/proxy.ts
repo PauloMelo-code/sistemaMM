@@ -69,8 +69,12 @@ export const config = {
    *   canal). Tem porteiro proprio por segredo; exigir cookie aqui quebraria o
    *   webhook do ML, que obviamente nao tem sessao.
    * - estaticos e imagem — nao ha o que proteger e custa latencia em toda carga.
+   * - `/robots.txt` — precisa ser legivel por rastreador, que obviamente nao
+   *   tem cookie. Dentro do porteiro ele responderia 307 para /login, e
+   *   rastreador que nao consegue ler robots.txt costuma assumir que pode
+   *   rastrear tudo — o oposto do que o arquivo pede.
    */
   matcher: [
-    "/((?!api/auth|api/saude|api/integracoes|_next/static|_next/image|favicon.ico|icon.png).*)",
+    "/((?!api/auth|api/saude|api/integracoes|_next/static|_next/image|favicon.ico|icon.png|robots.txt).*)",
   ],
 };

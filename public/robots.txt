@@ -1,0 +1,17 @@
+# Sistema MM Solucoes — painel de gestao.
+#
+# Hoje TODA a aplicacao e o painel autenticado: nao ha nada aqui para indexar, e
+# rastreador so gastaria banda batendo em redirecionamento para /login.
+#
+# ⚠️ ISTO MUDA QUANDO O SITE PUBLICO ENTRAR. A vitrine E para ser indexada — e a
+# razao comercial dela. Quando o route group do site existir, este arquivo passa
+# a liberar as rotas publicas e a bloquear so o painel:
+#
+#   Disallow: /anuncios
+#   Disallow: /estoque
+#   ... (as rotas de (painel))
+#
+# Enquanto isso, bloquear tudo e a resposta correta.
+
+User-agent: *
+Disallow: /
