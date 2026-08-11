@@ -206,6 +206,73 @@ export function lanceMaximo({
   return custoMaximo >= 0 ? custoMaximo : null;
 }
 
+/**
+ * O dinheiro REALIZADO de uma venda que ja aconteceu.
+ *
+ * Nao confundir com `calcularPreco`: aquela responde "por quanto devo anunciar";
+ * esta responde "quanto sobrou desta venda". Sao perguntas diferentes e as duas
+ * moram aqui pelo mesmo motivo — se a subtracao do liquido for reescrita dentro
+ * do handler de venda ou da tela de Pedidos, e bug de dinheiro por duplicacao.
+ *
+ *   taxa     = o que o CANAL informou; sem informacao, valor x TAXA_CANAL
+ *   comissao = valor x COMISSAO (4%)
+ *   liquido  = valor - taxa - comissao - freteSaida
+ *
+ * ⚠️ DUAS PREMISSAS EM ABERTO, e as duas mexem no numero:
+ *
+ * 1. **Base da comissao** (RN-108 🔴). A comissao aqui incide sobre o BRUTO,
+ *    que e o que o rodape do prototipo sugere (R$ 38.400 -> R$ 1.536). Se o
+ *    Anderson confirmar que e sobre o liquido de taxas, muda ESTA linha e mais
+ *    nenhuma — foi para isso que a conta saiu de dentro do handler.
+ * 2. **Taxa do ML** (RN-102 🔴). Os 14% nao estao confirmados e variam por
+ *    categoria. Por isso `taxaInformada` tem precedencia: numero do canal vale
+ *    mais que suposicao nossa, sempre. Quando ele falta, `taxaEstimada` sai
+ *    `true` — e o pedido nasce como "a conferir" em vez de virar verdade.
+ */
+export interface EntradaVenda {
+  /** Valor bruto da venda, como o canal cobrou do comprador. */
+  valor: number;
+  canal: Canal;
+  /**
+   * Frete de saida efetivamente pago pela MM. OBRIGATORIO pelo mesmo motivo do
+   * resto do modulo: no ML, item acima de R$ 79 tem a etiqueta descontada do
+   * repasse, e esquecer isso infla o liquido em centenas de reais por venda.
+   */
+  freteSaida: number;
+  /** A taxa que o canal informou nesta venda. `null` quando ele nao informa. */
+  taxaInformada?: number | null;
+}
+
+export interface ResultadoVenda {
+  taxa: number;
+  comissao: number;
+  liquido: number;
+  /** `true` = a taxa saiu da NOSSA suposicao, nao do canal. Nasce "a conferir". */
+  taxaEstimada: boolean;
+}
+
+export function resultadoDaVenda({
+  valor,
+  canal,
+  freteSaida,
+  taxaInformada = null,
+}: EntradaVenda): ResultadoVenda | null {
+  if (!valorValido(valor) || !valorValido(freteSaida)) return null;
+
+  const informouTaxa = taxaInformada !== null && valorValido(taxaInformada);
+  const taxa = informouTaxa ? (taxaInformada as number) : valor * TAXA_CANAL[canal];
+  if (!Number.isFinite(taxa)) return null; // canal fora de TAXA_CANAL por um caminho sem tipo
+
+  const comissao = valor * COMISSAO;
+
+  return {
+    taxa,
+    comissao,
+    liquido: valor - taxa - comissao - freteSaida,
+    taxaEstimada: !informouTaxa,
+  };
+}
+
 const BRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",

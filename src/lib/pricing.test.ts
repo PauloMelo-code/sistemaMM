@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import {
   calcularPreco,
   lanceMaximo,
+  resultadoDaVenda,
   formatarBRL,
   TAXA_CANAL,
   COMISSAO,
@@ -286,4 +287,61 @@ test("soma custo+frete que estoura para Infinity sai indisponivel, nao Infinity"
   assert.equal(r.disponivel, false);
   assert.equal(r.preco, null);
   assert.equal(r.lucro, null);
+});
+
+// -- g) o dinheiro REALIZADO de uma venda (resultadoDaVenda) ----------------
+
+test("liquido fecha a subtracao: valor - taxa - comissao - freteSaida", () => {
+  const r = resultadoDaVenda({
+    valor: 5000, canal: "mercado_livre", freteSaida: 400, taxaInformada: 700,
+  })!;
+  assert.equal(r.taxa, 700);
+  assert.ok(Math.abs(r.comissao - 5000 * COMISSAO) < TOL);
+  assert.ok(Math.abs(r.liquido - (5000 - 700 - 200 - 400)) < TOL);
+});
+
+test("a taxa INFORMADA pelo canal tem precedencia sobre a nossa suposicao", () => {
+  // O ponto da coluna `taxa_origem`: numero do canal vale mais que os 14% que
+  // nem estao confirmados (RN-102 🔴). Se a suposicao vencesse, o painel nunca
+  // discordaria do extrato — e a divergencia ficaria invisivel.
+  const informada = resultadoDaVenda({
+    valor: 1000, canal: "mercado_livre", freteSaida: 0, taxaInformada: 90,
+  })!;
+  assert.equal(informada.taxa, 90);
+  assert.equal(informada.taxaEstimada, false);
+});
+
+test("sem taxa informada, cai na tabela do canal e marca como ESTIMADA", () => {
+  const r = resultadoDaVenda({ valor: 1000, canal: "mercado_livre", freteSaida: 0 })!;
+  assert.ok(Math.abs(r.taxa - 1000 * TAXA_CANAL.mercado_livre) < TOL);
+  assert.equal(r.taxaEstimada, true, "estimada precisa ser visivel — o pedido nasce 'a conferir'");
+});
+
+test("venda direta nao tem taxa de canal, mas tem comissao", () => {
+  const r = resultadoDaVenda({ valor: 1000, canal: "whatsapp", freteSaida: 0 })!;
+  assert.equal(r.taxa, 0);
+  assert.ok(Math.abs(r.comissao - 40) < TOL);
+  assert.ok(Math.abs(r.liquido - 960) < TOL);
+});
+
+test("frete de saida SAI do liquido — e o erro de centenas de reais por venda", () => {
+  const semFrete = resultadoDaVenda({ valor: 5000, canal: "olx", freteSaida: 0 })!;
+  const comFrete = resultadoDaVenda({ valor: 5000, canal: "olx", freteSaida: 600 })!;
+  assert.ok(Math.abs(semFrete.liquido - comFrete.liquido - 600) < TOL);
+});
+
+test("liquido NEGATIVO nao e escondido — venda que deu prejuizo precisa aparecer", () => {
+  const r = resultadoDaVenda({ valor: 100, canal: "mercado_livre", freteSaida: 900 })!;
+  assert.ok(r.liquido < 0, "arredondar para zero esconderia prejuizo real no relatorio");
+});
+
+test("entrada invalida devolve null em vez de NaN na coluna de dinheiro", () => {
+  assert.equal(resultadoDaVenda({ valor: Number.NaN, canal: "olx", freteSaida: 0 }), null);
+  assert.equal(resultadoDaVenda({ valor: -1, canal: "olx", freteSaida: 0 }), null);
+  assert.equal(resultadoDaVenda({ valor: 100, canal: "olx", freteSaida: Number.NaN }), null);
+  // Canal fora da tabela chega por payload de webhook / JSON sem tipo.
+  assert.equal(
+    resultadoDaVenda({ valor: 100, canal: "shopee" as Canal, freteSaida: 0 }),
+    null,
+  );
 });
