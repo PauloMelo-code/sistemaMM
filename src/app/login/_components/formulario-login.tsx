@@ -16,7 +16,6 @@
  * quem ataca. A UNICA excecao e o bloqueio por tentativas: quem chegou la ja
  * provou conhecer o e-mail, e a pessoa legitima precisa saber por que nao entra.
  */
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { authClient } from "@/lib/auth/cliente";
@@ -24,8 +23,23 @@ import { authClient } from "@/lib/auth/cliente";
 const MENSAGEM_GENERICA = "E-mail ou senha invalidos.";
 const MENSAGEM_BLOQUEIO = "Muitas tentativas. Tente de novo em alguns minutos.";
 
+/**
+ * Para onde ir depois de entrar: o `?destino=` que o porteiro guardou, ou a
+ * raiz.
+ *
+ * ⚠️ SO CAMINHO RELATIVO. Aceitar a URL inteira aqui seria redirecionamento
+ * aberto: um link para `/login?destino=https://site-falso` levaria a pessoa
+ * para o golpe DEPOIS de ela ter digitado a senha com o nosso dominio na barra
+ * — a hora em que ela mais confia na tela. O `//` tambem e recusado, porque
+ * `//outro-site` e URL absoluta para o navegador.
+ */
+function destinoSeguro(): string {
+  const bruto = new URLSearchParams(window.location.search).get("destino");
+  if (!bruto || !bruto.startsWith("/") || bruto.startsWith("//")) return "/";
+  return bruto;
+}
+
 export function FormularioLogin() {
-  const router = useRouter();
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
@@ -45,21 +59,44 @@ export function FormularioLogin() {
     setEnviando(true);
     setErro("");
 
-    const { error } = await authClient.signIn.email({ email, password: senha });
+    try {
+      const { error } = await authClient.signIn.email({ email, password: senha });
 
-    if (error) {
-      // 429 e o unico caso em que o texto muda — ver o cabecalho.
-      setErro(error.status === 429 ? MENSAGEM_BLOQUEIO : MENSAGEM_GENERICA);
+      if (error) {
+        // 429 e o unico caso em que o texto muda — ver o cabecalho.
+        setErro(error.status === 429 ? MENSAGEM_BLOQUEIO : MENSAGEM_GENERICA);
+        setEnviando(false);
+        return;
+      }
+    } catch {
+      /**
+       * ⚠️ ESTE `catch` NAO E DEFENSIVA GENERICA — sem ele o botao TRAVA.
+       *
+       * Se a chamada REJEITA (rede caiu, origem recusada, resposta que o
+       * cliente nao consegue interpretar) em vez de resolver com `{ error }`,
+       * a excecao escapa do handler e `setEnviando(false)` nunca roda. A tela
+       * fica em "Entrando…" para sempre, sem mensagem — o usuario nao tem como
+       * saber se esta lento ou quebrado, e nem tentar de novo.
+       */
+      setErro("Nao foi possivel falar com o servidor. Tente de novo.");
       setEnviando(false);
       return;
     }
 
-    // `refresh()` antes de navegar: o layout de (painel) e server component e
-    // le a sessao no servidor. Sem invalidar o cache do roteador, a primeira
-    // renderizacao pode vir da versao anterior — deslogada — e devolver a
-    // pessoa para ca num laco.
-    router.refresh();
-    router.replace("/");
+    /**
+     * NAVEGACAO DURA, e nao `router.replace()`.
+     *
+     * O layout de (painel) e server component e le a sessao no servidor. Com a
+     * navegacao do roteador do Next, a transicao depende do cache do cliente e
+     * de um `refresh()` que precisa chegar antes — se a ordem escorregar, a
+     * pessoa volta para o login e o botao fica preso em "Entrando…", que e
+     * exatamente o sintoma relatado em producao.
+     *
+     * Recarregar a pagina inteira garante que o servidor veja o cookie novo e
+     * renderize tudo do zero. Acontece UMA vez por login: o custo e irrelevante
+     * perto de uma tela que nao avanca.
+     */
+    window.location.assign(destinoSeguro());
   }
 
   return (
