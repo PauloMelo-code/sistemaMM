@@ -97,6 +97,9 @@ COPY --from=construtor --chown=node:node /app/public ./public
 COPY --from=construtor --chown=node:node /app/src/lib/db/migrations ./src/lib/db/migrations
 COPY --from=construtor --chown=node:node /app/scripts/migrar.mjs ./scripts/migrar.mjs
 COPY --from=construtor --chown=node:node /app/scripts/criar-usuario.mjs ./scripts/criar-usuario.mjs
+# O agendador roda como um SEGUNDO servico, a partir desta mesma imagem — so
+# muda o comando de inicio. Ver o cabecalho do arquivo.
+COPY --from=construtor --chown=node:node /app/scripts/agendador.mjs ./scripts/agendador.mjs
 # Fica em `scripts/node_modules` e nao na raiz de proposito: o Node resolve
 # subindo a partir do arquivo, entao os scripts acham estes pacotes e o
 # `node_modules` do standalone — que serve a aplicacao — continua intocado.
