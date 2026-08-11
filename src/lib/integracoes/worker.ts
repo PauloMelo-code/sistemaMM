@@ -26,7 +26,7 @@ import { db } from "@/lib/db";
 import type { Canal } from "@/lib/pricing";
 
 import { HANDLERS, chaveHandler, type EventoParaHandler } from "./handlers";
-import { MAX_TENTATIVAS, esgotou, descreverErro } from "./retentativa";
+import { MAX_TENTATIVAS, ErroPermanente, esgotou, descreverErro } from "./retentativa";
 import { USUARIO_SISTEMA_ID } from "./usuario-sistema";
 
 /**
@@ -47,6 +47,12 @@ export interface ResumoDrenagem {
   falhados: number;
   /** Falharam e bateram o teto de tentativas — nao voltam sozinhos. */
   esgotados: number;
+  /**
+   * Concluidos COM RESSALVA: o sistema olhou e decidiu que nao ha o que fazer
+   * (pedido de outro vendedor, venda nao paga, peca ja vendida). Saem da fila
+   * com o motivo gravado — nao sao falha nem sucesso.
+   */
+  ignorados: number;
   /**
    * Pendentes que NINGUEM sabe processar: nao ha handler para o topico deles.
    * Enquanto nao houver credencial do ML, este numero e o total da fila — e
@@ -130,11 +136,19 @@ async function reivindicar(limite: number): Promise<LinhaReivindicada[]> {
   return resultado.rows;
 }
 
-/** Fase 3 — sucesso. */
-async function marcarProcessado(id: string): Promise<void> {
+/**
+ * Fase 3 — sucesso.
+ *
+ * `manterErro` e para a conclusao COM RESSALVA (erro permanente): o evento sai
+ * da fila, mas o motivo de nao ter virado nada fica gravado. Limpar `erro` ali
+ * apagaria a unica explicacao de por que aquela notificacao nao gerou pedido.
+ */
+async function marcarProcessado(id: string, { manterErro = false } = {}): Promise<void> {
   await db.execute(sql`
     UPDATE integracoes_eventos
-    SET processado_em = now(), erro = NULL, updated_at = now(),
+    SET processado_em = now(),
+        ${manterErro ? sql`` : sql`erro = NULL,`}
+        updated_at = now(),
         modified_by = ${USUARIO_SISTEMA_ID}
     WHERE id = ${id}
   `);
@@ -163,6 +177,7 @@ export async function drenarEventos({ limite = LOTE_PADRAO } = {}): Promise<Resu
     processados: 0,
     falhados: 0,
     esgotados: 0,
+    ignorados: 0,
     aguardandoHandler: 0,
   };
 
@@ -192,6 +207,18 @@ export async function drenarEventos({ limite = LOTE_PADRAO } = {}): Promise<Resu
       await marcarProcessado(linha.id);
       resumo.processados += 1;
     } catch (erro) {
+      // Falha que nao muda por tentar de novo (pedido de outro vendedor, venda
+      // nao paga, peca ja vendida): CONCLUIDA com ressalva. Nos olhamos e
+      // decidimos que nao ha o que fazer — repetir cinco vezes so encheria de
+      // ruido a lista que deveria mostrar o que precisa de gente.
+      if (erro instanceof ErroPermanente) {
+        await marcarErro(linha.id, descreverErro(erro));
+        await marcarProcessado(linha.id, { manterErro: true });
+        resumo.ignorados += 1;
+        console.info(`[worker] evento ${linha.id} ignorado: ${erro.message}`);
+        continue;
+      }
+
       await marcarErro(linha.id, descreverErro(erro));
       if (esgotou(linha.tentativas)) {
         resumo.esgotados += 1;

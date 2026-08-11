@@ -34,6 +34,15 @@ import { canalEnum } from "./anuncios"; // enum de canal compartilhado
  * vocabulario DELES: aqui o vocabulario e NOSSO, e tipo desconhecido significa
  * codigo que ninguem escreveu, nao integracao que mudou. Melhor falhar na
  * gravacao do que enfileirar uma tarefa que nenhum worker sabe executar.
+ *
+ * ⚠️ `tirar_do_site` E RESERVADO E NAO DEVE SER USADO. Tirar do site e operacao
+ * INTERNA (`itens.exibir_no_site`), sem API de terceiro, entao ela acontece na
+ * MESMA transacao da venda — nao no outbox. Enfileirar criava uma janela em que
+ * o item estava vendido e ainda no ar na vitrine, esperando um worker, sem
+ * motivo. O valor continua no enum porque remover valor de enum no Postgres
+ * exige recriar o tipo e alterar a coluna, o que nao se justifica por um rotulo
+ * que ninguem emite. Se um dia existir uma vitrine EXTERNA (fora do nosso
+ * banco), ele ganha uso legitimo.
  */
 export const tipoTarefaEnum = pgEnum("tipo_tarefa_integracao", [
   "pausar_anuncio",

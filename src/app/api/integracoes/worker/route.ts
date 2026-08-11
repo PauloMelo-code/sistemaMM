@@ -17,6 +17,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { drenarEventos, LOTE_PADRAO } from "@/lib/integracoes/worker";
+import { drenarTarefas } from "@/lib/integracoes/tarefas-worker";
 
 // `node:crypto` e o driver `pg` nao rodam no runtime edge.
 export const runtime = "nodejs";
@@ -55,8 +56,13 @@ export async function POST(request: Request) {
   const limite = Number.isInteger(pedido) && pedido > 0 ? Math.min(pedido, 200) : LOTE_PADRAO;
 
   try {
-    const resumo = await drenarEventos({ limite });
-    return NextResponse.json(resumo, { status: 200 });
+    // As DUAS filas, nesta ordem e num disparo so. Eventos primeiro porque e
+    // deles que as tarefas nascem: drenar eventos e, na mesma passada, executar
+    // o que eles acabaram de enfileirar reduz a janela em que o item esta
+    // vendido e o anuncio do outro canal segue no ar. Um cron, nao dois.
+    const eventos = await drenarEventos({ limite });
+    const tarefas = await drenarTarefas();
+    return NextResponse.json({ eventos, tarefas }, { status: 200 });
   } catch (erro) {
     // Falha AQUI e falha de infraestrutura (banco fora, pool esgotado) — falha
     // de handler individual ja foi tratada dentro da drenagem e nao chega aqui.
