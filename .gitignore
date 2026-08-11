@@ -41,3 +41,24 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lixo de redirecionamento de shell mal citado
+#
+# Um `>` ou um `$(` solto dentro de um comando cria, na raiz do repositorio, um
+# arquivo VAZIO com o nome do token seguinte — ja apareceram `${r`, `$(curl`,
+# `1)`, `now()`, `{})` e `TAMANHO_MAXIMO_CORPO)`. Um deles chegou a ser
+# commitado por um `git add -A` (removidos em e907ad7).
+#
+# ISTO ESCONDE O SINTOMA, NAO CORRIGE A CAUSA. Os arquivos continuam sendo
+# criados no disco; so param de sujar o `git status` e de entrar em commit por
+# acidente. Se aparecerem em volume, o que precisa mudar e o comando que os
+# gera, nao esta lista.
+#
+# Tudo ancorado na `/` de proposito: fora da raiz, um nome desses pode ser
+# arquivo legitimo. Nomes que sao palavra comum (`vira`, `decisao`) nao tem
+# padrao seguro e continuam aparecendo no `git status` — melhor assim do que
+# um curinga que engula codigo de verdade.
+/*)
+/$*
+/{*
+/[0-9]
