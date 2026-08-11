@@ -124,7 +124,10 @@ export async function lerEstoque(
        */
       loteId: itens.lote_id,
       localGalpao: itens.local_galpao,
-      atualizadoEm: itens.updated_at,
+      // `::text` e nao a coluna: o carimbo tem que chegar a action como a
+      // string EXATA do banco. Virar `Date` perde os microssegundos e ainda
+      // desloca o fuso — as duas coisas quebram o optimistic locking.
+      atualizadoEm: sql<string>`${itens.updated_at}::text`,
       /**
        * Canais com anuncio ativo, agregados no BANCO. Buscar os anuncios numa
        * segunda consulta e juntar em memoria daria N+1 numa tela que lista o
@@ -173,7 +176,7 @@ export async function lerEstoque(
         custoTexto: l.custo ?? "",
         precoAlvoTexto: l.precoAlvo ?? "",
         localGalpao: l.localGalpao ?? "",
-        atualizadoEm: l.atualizadoEm.toISOString(),
+        atualizadoEm: l.atualizadoEm,
       };
     }),
   };

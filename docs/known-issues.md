@@ -11,6 +11,62 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
+### ✅ CORRIGIDO em 2026-08-11: o optimistic locking recusava TODA edicao legitima
+- **Arquivo(s):** `src/lib/actions/{lotes,estoque}-mutacoes.ts`, `actions/estoque.ts`
+- **O sintoma:** o Anderson cadastrava um lote, clicava em editar e levava
+  *"Outra pessoa alterou este lote enquanto voce editava"* — **sozinho no
+  sistema**. Permanente, nao intermitente. Editar lote ou item era impossivel.
+- **Achado por agente de teste**, um dia depois de o CRUD entrar. Nao havia
+  teste que pegasse: o formulario nunca foi exercitado ponta a ponta, e foi
+  entregue com essa lacuna declarada.
+- **Duas causas somadas**, as duas provadas contra o banco local:
+  ```
+  banco  : 2026-08-11 23:15:04.963399
+  Date() : 2026-08-12T02:15:04.963Z
+           └ perdeu .399 µs          └ e ganhou 3 horas
+  ```
+  1. A coluna e `timestamp(6)` e `now()` grava MICROSSEGUNDOS; o `Date` do JS so
+     tem milissegundos. O `WHERE` procurava um instante que nao existe.
+  2. `updated_at::text` sai sem fuso, `new Date()` le como hora LOCAL e o driver
+     assume UTC — 3h com `TZ=America/Sao_Paulo`.
+- **Como ficou:** o carimbo virou **token opaco**. A string exata do banco vai e
+  volta sem nunca ser convertida (`updated_at::text = $n`). O cliente nao precisa
+  saber que aquilo e uma data.
+- **⚠️ NAO troque de volta para `eq(updated_at, new Date(x))`.** Guardado por
+  regressao em dois lugares: `prova-mutacoes-crud.sql` casos 4c/4e e
+  `travamento-otimista.test.ts`.
+
+### 🟡 A MESMA coluna tem DOIS relogios — e agora da para ver
+- **Descoberto ao corrigir o item acima.** Nao e teoria: reproduzido.
+  ```
+  created_at  (DEFAULT now(), relogio do Postgres)  23:18:51
+  updated_at  (new Date(),    relogio do Node)      20:18:51
+  -> o registro foi ATUALIZADO ANTES de ser criado
+  ```
+- **Por que acontece:** o container do Postgres roda em `Etc/UTC` e o processo
+  Node em `America/Sao_Paulo`. `now()` grava num relogio, `new Date()` no outro,
+  e a coluna e `timestamp` SEM fuso — ninguem reconcilia.
+- **O que ja contamina:** o KPI "vendidos no mes" de `lerEstoque` compara
+  `updated_at` (escrito pelo Node) com `date_trunc('month', now())` (relogio do
+  Postgres). Na virada do mes, conta errado.
+- **⚠️ O passo do runbook NAO E OPCIONAL:**
+  `ALTER DATABASE ... SET TimeZone = 'America/Sao_Paulo'`. Sem ele, producao tem
+  exatamente esta divisao. E continua sendo paliativo — a decisao de fundo
+  (`timestamptz` nas colunas de instante) segue com o Lucas, e vence antes de
+  haver venda gravada.
+
+### ✅ CORRIGIDO em 2026-08-11: `criar-usuario.mjs` estourava no unico caminho nao testado
+- **O caso:** usuario existe em `user` mas **sem** linha em `account` — o
+  bootstrap de quem foi criado por SQL. O `INSERT` usava `$2` para `user_id`
+  (uuid) e `account_id` (text), e o Postgres recusava com `42P08`.
+- **Por que sobreviveu:** a mesma correcao ja tinha sido aplicada no ramo de
+  CRIACAO, com um `replace_all` que reportou "todas as ocorrencias substituidas"
+  — e substituiu uma so, porque a segunda tinha indentacao diferente. Criar do
+  zero e trocar senha de quem ja tem credencial passavam; este ramo nunca era
+  exercitado.
+- **Licao:** substituicao em massa que diz "todas" merece conferencia. E ramo
+  que nenhum caminho de uso alcanca e exatamente onde o erro fica.
+
 ### ⚠️ O operador pode criar item pela matriz, e nao consegue preencher o formulario
 - **Arquivo(s):** `src/lib/auth/rbac.ts`, `src/lib/actions/estoque-mutacoes.ts`
 - **A contradicao, achada ao construir o CRUD (2026-08-11):** a matriz da ao

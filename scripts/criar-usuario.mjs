@@ -276,10 +276,21 @@ try {
       [usuarioId, hash],
     );
     if (rowCount === 0) {
+      // ⚠️ `$4` SEPARADO, pela mesma razao do insert do ramo de criacao acima —
+      // e nao por simetria de estilo. Este caminho nasceu com `$2` nos dois
+      // lugares e estourava 42P08 ("uuid versus text") em toda execucao: o
+      // Postgres tenta deduzir UM tipo para `user_id` (uuid) e `account_id`
+      // (text). OS DOIS INSERTS PRECISAM DISSO — a correcao existia aqui do
+      // lado e nao tinha sido aplicada neste ramo.
+      //
+      // So este caminho roda quando o usuario existe em `user` mas NAO tem
+      // linha em `account` — o bootstrap de quem foi criado por SQL. Criar do
+      // zero e trocar senha de quem ja tem credencial passavam; este nunca foi
+      // exercitado, e por isso o erro sobreviveu.
       await cliente.query(
         `INSERT INTO account (id, user_id, account_id, provider_id, password)
-         VALUES ($1, $2, $2, 'credential', $3)`,
-        [randomUUID(), usuarioId, hash],
+         VALUES ($1, $2, $4, 'credential', $3)`,
+        [randomUUID(), usuarioId, hash, usuarioId],
       );
     }
   }

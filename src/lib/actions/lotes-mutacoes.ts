@@ -93,6 +93,26 @@ export async function criarLote(entrada: EntradaLote): Promise<Resultado<{ id: s
  * ⚠️ Isto SO funciona porque todo UPDATE daqui seta `updated_at` a mao. Nao ha
  * trigger no banco nem `$onUpdate` no schema (known-issues): um caminho de
  * escrita que esqueca a coluna desliga a protecao de todos os outros, sem aviso.
+ *
+ * ---------------------------------------------------------------------------
+ * ⚠️ O CARIMBO E COMPARADO COMO TEXTO, E NAO COMO DATA. Nao "simplifique" para
+ * `eq(tabela.updated_at, new Date(x))` — foi assim que nasceu, e recusava TODA
+ * edicao legitima. Duas causas somadas, as duas provadas contra o banco:
+ *
+ *   banco  : 2026-08-11 23:15:04.963399
+ *   Date() : 2026-08-12T02:15:04.963Z
+ *            └ perdeu .399 µs          └ e ganhou 3 horas
+ *
+ * 1. A coluna e `timestamp(6)` e o `now()` grava MICROSSEGUNDOS. O `Date` do JS
+ *    so tem milissegundos: `.963399` vira `.963` e o WHERE procura um instante
+ *    que nao existe.
+ * 2. `updated_at::text` sai sem fuso; `new Date()` le como hora LOCAL, enquanto
+ *    o driver assume UTC. Com o `TZ=America/Sao_Paulo` do Dockerfile, 3 horas.
+ *
+ * Tratando como TOKEN OPACO — a string exata do banco vai e volta sem nunca
+ * virar `Date` — nenhuma das duas conversoes acontece. O cliente nao precisa
+ * saber que aquilo e uma data; para ele e so a versao que ele carregou.
+ * ---------------------------------------------------------------------------
  */
 export async function atualizarLote(
   id: string,
@@ -121,7 +141,8 @@ export async function atualizarLote(
         .where(
           and(
             eq(lotes.id, id),
-            eq(lotes.updated_at, new Date(updatedAtOriginal)),
+            // Texto contra texto: o valor exato do banco, sem virar `Date`.
+            sql`${lotes.updated_at}::text = ${updatedAtOriginal}`,
             eq(lotes.is_deleted, false),
           ),
         )

@@ -127,7 +127,17 @@ export async function atualizarItem(
        * foi vendido sem que nada explique a diferenca. Se o valor estava errado,
        * o caminho e corrigir a venda, nao o item.
        */
-      if (antes.situacao === "vendido" && String(antes.custo) !== validado.data.custo) {
+      /**
+       * ⚠️ COMPARACAO NUMERICA, e nao de texto. `String(antes.custo) !== ...`
+       * era o que estava aqui, e acusava alteracao onde nao houve: o banco
+       * guarda `3300.00` e quem redigita `3300` no formulario mandava um texto
+       * diferente com o MESMO valor — o sistema recusava a edicao dizendo que o
+       * custo mudou, sem ter mudado.
+       *
+       * `Number` e seguro aqui porque isto e uma COMPARACAO, nao uma gravacao:
+       * o valor que vai para o banco continua sendo a string validada.
+       */
+      if (antes.situacao === "vendido" && Number(antes.custo) !== Number(validado.data.custo)) {
         return "Este item ja foi vendido: o custo nao pode ser alterado. Corrija pelo pedido.";
       }
 
@@ -137,7 +147,8 @@ export async function atualizarItem(
         .where(
           and(
             eq(itens.id, id),
-            eq(itens.updated_at, new Date(updatedAtOriginal)),
+            // Texto contra texto: o valor exato do banco, sem virar `Date`.
+            sql`${itens.updated_at}::text = ${updatedAtOriginal}`,
             eq(itens.is_deleted, false),
           ),
         )
