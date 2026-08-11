@@ -53,6 +53,10 @@ O modulo e **ESM** (`"type": "module"`). Nao ha `require()` em lugar nenhum.
 | `MINIO_BUCKET` | bucket das fotos | idem |
 | `MINIO_PUBLIC_URL` | base publica das fotos (site e ML) | cai no `MINIO_ENDPOINT` |
 | `MINIO_REGION` | regiao da assinatura | assume `us-east-1` |
+| `CREDENCIAIS_KEY` | cifra os tokens de canal (AES-256-GCM) | nao da para conectar canal nenhum |
+| `ML_CLIENT_ID` / `ML_CLIENT_SECRET` | o app registrado no portal do ML | o OAuth nem inicia |
+| `ML_REDIRECT_URI` | precisa ser IDENTICA a cadastrada no portal | o ML recusa a volta |
+| `ML_API_BASE` | base da API do ML | assume a oficial |
 
 Template em `.env.example`. Tudo que le ambiente **falha fechado**: sem
 configuracao completa a operacao e recusada, nunca executada pela metade.
@@ -237,6 +241,47 @@ para: valida a origem, grava uma linha em `integracoes_eventos` e responde 200.
 O processamento real (buscar o dado na API do canal, dar baixa no estoque,
 pausar os outros anuncios) **ainda nao existe** — depende das credenciais do ML,
 que sao pendencia 🔴.
+
+### OAuth do Mercado Livre — como a credencial entra
+
+Duas rotas, usadas **uma vez** por ambiente, no navegador:
+
+| Rota | Passo |
+|---|---|
+| `GET /api/integracoes/oauth/mercado-livre/iniciar?t=$WEBHOOK_SECRET` | manda o Anderson para a tela de autorizacao do ML |
+| `GET /api/integracoes/oauth/mercado-livre/callback` | a volta do ML; troca o `code` por token e grava cifrado |
+
+O `callback` e o `redirect_uri` cadastrado no portal do ML, entao precisa ser
+**estatico e identico** ao registrado — por isso nao leva segredo nem parametro
+nosso na URL. Quem protege essa rota e o **`state`**.
+
+**O que o `state` impede** (e por que ele nao e burocracia): sem conferir, um
+atacante inicia o fluxo com a PROPRIA conta do ML, induz o Anderson a abrir o
+link de volta, e o painel termina conectado a conta dele — que passa a receber
+as perguntas e os pedidos da MM. E o CSRF classico de OAuth. O cookie de estado
+vale 10 minutos, e de **uso unico** e some assim que serve; o fluxo tambem usa
+PKCE. Quando a conferencia falha, a resposta nao diz **qual** parte falhou: para
+quem ataca, tudo e "invalido".
+
+**Por que o `iniciar` pede segredo e o `callback` nao.** Nao ha autenticacao no
+sistema (known-issues 🔴). Sem porteiro no `iniciar`, qualquer um dispararia o
+fluxo e conectaria a propria conta — e como o indice unico so admite **uma
+credencial ativa por canal**, a dele substituiria a da MM. Quando o login
+existir, o `iniciar` vira "so administrador" e o segredo sai da URL.
+
+**O token nunca fica em texto claro.** `src/lib/integracoes/cofre.ts` cifra em
+AES-256-GCM (stdlib, sem dependencia) antes de gravar em
+`integracoes_credenciais`, com prefixo de versao no pacote para permitir trocar
+algoritmo ou girar chave depois sem adivinhar o formato do que ja esta gravado.
+GCM e nao CBC porque GCM e **autenticado**: adulterar o texto cifrado levanta
+excecao em vez de devolver lixo em silencio.
+
+> O que a cifragem protege e o que **nao** protege: um dump de banco vazado
+> entrega texto inutil em vez do token que publica, despublica e responde em nome
+> do cliente. Mas quem tiver a `CREDENCIAIS_KEY` decifra tudo. Ela vale porque
+> chave e banco vivem em lugares diferentes — variavel de ambiente da aplicacao
+> versus arquivo de backup. Se as duas vazarem juntas, a cifragem nao serviu de
+> nada.
 
 ### A identidade do robo
 

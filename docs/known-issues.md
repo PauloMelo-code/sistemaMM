@@ -11,6 +11,110 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
+### A pausa nos outros canais so funciona no ML — a OLX nao tem executor
+- **Arquivo(s):** `src/lib/integracoes/executores.ts`,
+  `src/lib/integracoes/mercado-livre/executor-anuncio.ts`
+- **Situacao (2026-08-10):** o executor do **Mercado Livre** existe e esta
+  verificado: `PUT /items/{id}` com `{"status":"paused"}` (endpoint confirmado
+  na doc oficial), e `anuncios.status` so muda **depois** da confirmacao do
+  canal. O da **OLX nao existe** — a conta da MM nem tem acesso confirmado a
+  API deles (🔴 proprio, acima).
+- **A ironia que importa:** a venda que chega pelo ML gera tarefa para pausar na
+  **OLX** — ou seja, o caso mais comum e justamente o que ainda nao executa. O
+  executor do ML cobre o caminho inverso (vendeu na OLX ou no WhatsApp).
+- **Nao fica escondido:** o resumo do worker traz `aguardandoExecutor` contando
+  as tarefas sem dono **em toda passada**, mesmo quando o lote executou tudo o
+  que sabia. E elas nao gastam tentativa: a consulta so reivindica par
+  `(canal, tipo)` com executor, entao nao chegam esgotadas no dia em que o
+  executor existir.
+- **Verificado com ML falso** (removido depois): caminho feliz pausa e atualiza
+  o banco; anuncio **ja pausado** no canal responde 400 e o executor confirma
+  por `GET` que o estado desejado ja vale — conta como sucesso, sem interpretar
+  texto de erro; tarefa sem `id_externo` sai da fila como permanente; tarefa da
+  OLX fica pendente com `tentativas = 0`.
+- **`closed` e inalcancavel por construcao.** O ML aceita `active`, `paused` e
+  `closed`, e `closed` **finaliza o anuncio para sempre** (republicar perde id,
+  historico e posicao). Nenhum caminho de codigo produz essa string, e ha teste
+  travando isso.
+
+### A venda ja da baixa no estoque, mas NINGUEM pausa os outros canais ainda
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/handler-venda.ts`,
+  `src/lib/integracoes/tarefas.ts`, `src/lib/db/schema/integracoes-tarefas.ts`
+- **Situacao:** o handler de venda registra o pedido, congela o custo, marca o
+  item como vendido, **tira do site na mesma transacao** e **enfileira** a pausa
+  dos outros canais no mesmo commit — isso funciona e esta verificado de ponta a
+  ponta. O que **nao** existe e o executor: nada consome `integracoes_tarefas`.
+  As tarefas acumulam.
+- **O que JA esta protegido, mesmo sem executor:** o item sai do estoque e da
+  vitrine publica atomicamente com a venda. O buraco e so o canal EXTERNO.
+- **Por que importa:** e a metade da RN-104 que protege contra vender a mesma
+  peca duas vezes em canais diferentes. Enquanto ninguem drenar, o item vendido
+  no ML **continua anunciado na OLX** — com o agravante de que o painel ja diz
+  "vendido" e passa a impressao de que o efeito colateral aconteceu.
+- **Enquanto isso, nada se perde:** `SELECT * FROM integracoes_tarefas WHERE
+  processado_em IS NULL` lista exatamente o que ficou por fazer, e
+  `contarTarefas()` ja devolve pendentes e esgotadas para a tela Integracoes.
+
+#### O que falta, item por item
+
+**1. Conferir os endpoints — e o unico bloqueio real.** Pausar anuncio no ML e
+provavelmente `PUT /items/{id}` com `{"status":"paused"}`, mas **isso nao foi
+verificado**: a doc do ML bloqueia leitura automatizada (403) e nao ha credencial
+para testar. Na OLX e pior — nem se sabe se a conta da MM tem acesso a API
+(🔴 proprio). Escrever de cabeca um `PUT` errado em cima da RN-104 seria pior
+que a lacuna visivel. **Com o app registrado, confira e so entao escreva.**
+
+**2. `drenarTarefas()`** — espelho do `drenarEventos` que ja existe: reivindicar
+com `FOR UPDATE SKIP LOCKED` (incrementando `tentativas` no mesmo comando),
+executar **fora** de transacao, gravar o resultado. O registro de executores
+segue o padrao do `HANDLERS`, chaveado por `(canal, tipo)`. Reaproveitar
+`retentativa.ts`: teto de tentativas, `ErroPermanente` e `codigoPostgres` ja
+estao la e valem igual.
+
+**3. O executor precisa ser IDEMPOTENTE.** Pausar um anuncio que ja esta pausado
+tem que contar como sucesso, nao como erro — reentrega e rotina, e a RN-104
+proibe que reprocessar cause efeito colateral. Se o canal devolver erro do tipo
+"ja pausado", trate como concluido.
+
+**4. Atualizar `anuncios.status` so DEPOIS da confirmacao do canal.** Marcar como
+pausado antes de o canal confirmar faria o painel mentir na direcao perigosa:
+"esta pausado" quando ainda esta no ar.
+
+**5. ⚠️ Falta o estado "pausa pendente".** Confirmado no banco: `anuncios` **nao**
+tem `status_desejado` nem `sincronizado_em`. Entao, entre a venda e a execucao da
+tarefa, o anuncio da OLX aparece como "no ar" — o que e verdade, mas a tela nao
+tem como dizer "e uma pausa que ainda nao aconteceu". A analise de corretude
+pede essas duas colunas; sem elas, a tela Integracoes so consegue mostrar a fila,
+nao o anuncio divergente.
+
+**6. Reversao nao existe.** O enum ja tem `reativar_anuncio`, mas ninguem
+enfileira: cancelar uma venda depois de pausar os outros canais nao reativa nada.
+Depende da RN-120 (⚠️ Anderson) — devolucao **nao** e o inverso automatico da
+venda.
+
+**7. Onde o worker roda** continua sendo o mesmo ADR aberto do Lucas.
+
+#### ✅ CORRIGIDO em 2026-08-10: `tirar_do_site` nao era para ser tarefa
+- **O que era:** `itens.exibir_no_site` existe no banco (migracao `0007`), entao
+  tirar do site e **operacao interna** — um `UPDATE`, nenhuma API de terceiro.
+  Estava enfileirado como tarefa junto com as pausas externas, por simetria de
+  desenho. Criava uma janela em que o item ficava vendido e **ainda no ar na
+  vitrine**, esperando um worker que nem existe.
+- **Como ficou:** `situacao = 'vendido'` e `exibir_no_site = false` no MESMO
+  `UPDATE`, dentro da transacao de `registrarVendaML`. **Verificado:** antes da
+  venda `exibir_no_site=true`; depois, `vendido`/`false`, e a fila fica com UMA
+  tarefa (a pausa na OLX) em vez de duas.
+- **Regra que fica:** o outbox e para o que sai para OUTRO SISTEMA. O que e
+  nosso resolve na transacao — sem janela, sem worker no meio.
+- **`tirar_do_site` continua no enum, marcado como RESERVADO e sem uso.**
+  Remover valor de enum no Postgres exige recriar o tipo e alterar a coluna, o
+  que nao se justifica por um rotulo que ninguem emite. Ganha uso legitimo se um
+  dia existir vitrine externa, fora do nosso banco.
+- **Como isto foi achado:** revisando o proprio desenho para documenta-lo, nao
+  por teste falhando. Os 108 testes passavam com a versao errada — nenhum deles
+  perguntava "por que isto e uma tarefa?". Vale como lembrete de onde os testes
+  desta base nao alcancam.
+
 ### Nao existe autenticacao — e o RBAC da RN-107 depende dela
 - **Arquivo(s):** `src/lib/` (nao ha `auth/`)
 - **Situacao:** a tabela `usuarios` existe com os 3 papeis, mas nao ha sessao,
