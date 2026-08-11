@@ -20,6 +20,26 @@ RUN npm ci
 # ---------------------------------------------------------------------------
 # 2) Build
 # ---------------------------------------------------------------------------
+FROM base AS ferramentas
+WORKDIR /ferramentas
+COPY package.json package-lock.json ./
+# Dependencias de PRODUCAO para os scripts de manutencao (`migrar.mjs` e
+# `criar-usuario.mjs`), que rodam no console do container.
+#
+# ⚠️ POR QUE ISTO PRECISA EXISTIR, e nao e redundancia com o standalone: o
+# tracer do Next EMBUTE o `drizzle-orm` nos chunks do servidor em vez de
+# manter o pacote em `node_modules` — sobram 25 pacotes la, e `drizzle-orm` e
+# `better-auth` nao estao entre eles. Os scripts, que sao arquivos soltos fora
+# do grafo de modulos da app, quebram com ERR_MODULE_NOT_FOUND. Descoberto
+# rodando a imagem, nao lendo o Dockerfile.
+#
+# O `rm -rf` tira o que so a APP usa. `next` sozinho passa de 100 MB e os
+# scripts nunca o importam — sem a poda, a economia do standalone ia embora.
+RUN npm ci --omit=dev \
+  && rm -rf node_modules/next node_modules/react node_modules/react-dom \
+            node_modules/@next node_modules/@swc node_modules/@img \
+            node_modules/.package-lock.json
+
 FROM base AS construtor
 WORKDIR /app
 COPY --from=dependencias /app/node_modules ./node_modules
@@ -77,6 +97,11 @@ COPY --from=construtor --chown=node:node /app/public ./public
 COPY --from=construtor --chown=node:node /app/src/lib/db/migrations ./src/lib/db/migrations
 COPY --from=construtor --chown=node:node /app/scripts/migrar.mjs ./scripts/migrar.mjs
 COPY --from=construtor --chown=node:node /app/scripts/criar-usuario.mjs ./scripts/criar-usuario.mjs
+# Fica em `scripts/node_modules` e nao na raiz de proposito: o Node resolve
+# subindo a partir do arquivo, entao os scripts acham estes pacotes e o
+# `node_modules` do standalone — que serve a aplicacao — continua intocado.
+# Assim `node scripts/migrar.mjs` funciona a partir de /app, como no runbook.
+COPY --from=ferramentas --chown=node:node /ferramentas/node_modules ./scripts/node_modules
 
 USER node
 EXPOSE 3000
