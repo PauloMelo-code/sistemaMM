@@ -11,6 +11,27 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
+### `drizzle-kit migrate` nao consegue subir um banco VIRGEM — e o deploy depende disso
+- **Arquivo(s):** `package.json` (`db:migrate`), `.github/workflows/deploy.yml`
+- **Situacao:** contra um banco que **ja tem** o schema `drizzle` de controle, o
+  `npm run db:migrate` funciona e sai com codigo 0. Contra um banco **recem
+  criado**, ele imprime "applying migrations...", **sai com codigo 1 sem
+  mensagem nenhuma e nao aplica nada** — zero tabelas, zero linhas em
+  `drizzle.__drizzle_migrations`. Reproduzido em 2026-08-10 com
+  `CREATE DATABASE` + `DATABASE_URL` apontado para ele.
+- **Nao e o SQL:** os mesmos 5 arquivos aplicados em ordem com
+  `psql -v ON_ERROR_STOP=1` sobem limpos num banco virgem (5/5, incluindo a
+  semente do usuario de sistema). Tambem **nao** e a semente escrita a mao: o
+  teste foi refeito com o bloco removido e a falha e identica. Tambem nao e o
+  caso do caminho (testado pelo `Desktop` canonico, mesma falha).
+- **Por que importa:** HML e PRD comecam com banco vazio. Do jeito que esta, o
+  primeiro deploy **nao cria o schema** e falha sem dizer por que. Em dev
+  ninguem percebe, porque o banco local ja passou dessa fase.
+- **Acao sugerida:** investigar a versao do `drizzle-kit` (o `node -p` nem
+  consegue ler o `package.json` dela — `exports` nao expoe o subpath). Enquanto
+  nao resolver, o bootstrap de ambiente novo tem caminho manual comprovado:
+  aplicar os arquivos de `src/lib/db/migrations/*.sql` em ordem via `psql`.
+
 ### Nao existe autenticacao — e o RBAC da RN-107 depende dela
 - **Arquivo(s):** `src/lib/` (nao ha `auth/`)
 - **Situacao:** a tabela `usuarios` existe com os 3 papeis, mas nao ha sessao,
@@ -746,6 +767,31 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
 ---
 
 ## 🟢 Intencional (nao "corrigir" sem perguntar)
+
+### O segredo do webhook viaja na URL, e a chave do evento e hash do corpo
+- **Arquivo(s):** `src/app/api/integracoes/webhook/[canal]/route.ts`,
+  `src/lib/integracoes/envelope.ts`
+- **Segredo na query string (`?t=`):** e o unico mecanismo sob NOSSO controle —
+  o Mercado Livre nao assina notificacao e nao deixa configurar cabecalho, so a
+  URL de callback. **Custo assumido:** o segredo aparece no log de acesso do
+  nginx e em qualquer proxy do caminho. Mitigacao: e rotacionavel (troca o
+  `.env` e a URL no portal) e **nao e a unica defesa** — pela RN-117 o corpo do
+  POST nunca e fonte de verdade, entao quem tiver o segredo ainda nao consegue
+  forjar uma venda. Falta somar **allowlist de IP no nginx** em producao.
+  Quando algum canal aceitar cabecalho, ler dali — e trocar o mecanismo, nao
+  acrescentar um segundo "por garantia".
+- **Chave do evento = SHA-256 do corpo cru**, e nao um campo do payload: usar um
+  id do envelope exigiria saber qual campo identifica a NOTIFICACAO. Errar e
+  pegar o id do RECURSO faria dois eventos diferentes do mesmo pedido
+  (pagou → enviou) colidirem, e o segundo seria descartado como reentrega.
+  Perder notificacao real e pior que gravar duplicata.
+  **O que o hash NAO cobre:** reentrega em que o canal muda um campo (timestamp
+  de envio, contador de tentativa) gera corpo diferente, logo linha nova. Por
+  isso o processamento la na frente **tambem** precisa ser idempotente — a trava
+  do banco cobre a entrega, nao o efeito.
+- **`topico` e `recurso` sao melhor esforco.** Sao colunas informativas; nada de
+  negocio depende delas. Se o envelope nao trouxer, ficam nulas — envelope
+  desconhecido nao pode derrubar a gravacao.
 
 ### `npm run build` chama `scripts/build.mjs`, e nao `next build` direto
 - **Arquivo(s):** `scripts/build.mjs`, `package.json` (script `build`)
