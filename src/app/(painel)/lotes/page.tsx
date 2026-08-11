@@ -19,7 +19,9 @@ import { redirect } from "next/navigation";
 
 import { custoRecuperado, giroLento, lerLotes, LENTO_DIAS } from "@/lib/actions/lotes";
 import { lerSessao } from "@/lib/auth/sessao";
+import { temPermissao } from "@/lib/auth/rbac";
 import { formatarBRL } from "@/lib/pricing";
+import { BotaoNovoLote, AcoesLote } from "./_components/formulario-lote";
 
 export const dynamic = "force-dynamic";
 
@@ -47,15 +49,25 @@ export default async function LotesPage() {
 
   const { lotes, custoTotal, totalItens } = estado;
 
+  /**
+   * Quem LE nao necessariamente ESCREVE: a consultoria (Orbital) enxerga tudo e
+   * nao opera. Decidido no servidor — o botao nem chega ao HTML de quem nao
+   * pode. As actions conferem de novo; esconder botao nunca e a protecao.
+   */
+  const podeEscrever = temPermissao(sessao.papel, "lotes", "criar");
+
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-0.5">
-        <h1 className="font-display text-[22px] font-bold text-navy">Lotes arrematados</h1>
-        <span className="text-[13px] text-ink-2">
-          {totalItens} {totalItens === 1 ? "item" : "itens"} em {lotes.length}{" "}
-          {lotes.length === 1 ? "lote" : "lotes"} · custo total arrematado{" "}
-          {formatarBRL(custoTotal)}
-        </span>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="font-display text-[22px] font-bold text-navy">Lotes arrematados</h1>
+          <span className="text-[13px] text-ink-2">
+            {totalItens} {totalItens === 1 ? "item" : "itens"} em {lotes.length}{" "}
+            {lotes.length === 1 ? "lote" : "lotes"} · custo total arrematado{" "}
+            {formatarBRL(custoTotal)}
+          </span>
+        </div>
+        {podeEscrever ? <BotaoNovoLote /> : null}
       </header>
 
       {lotes.length === 0 ? (
@@ -88,6 +100,23 @@ export default async function LotesPage() {
                     arrematado em {MES_ANO.format(lote.arrematadoEm)}
                   </span>
                 </div>
+
+                {podeEscrever ? (
+                  <AcoesLote
+                    // `temItens` desabilita Excluir com motivo visivel. A action
+                    // recusa de qualquer forma — aqui a regra so chega antes do
+                    // clique, em vez de depois da confirmacao.
+                    temItens={lote.itens > 0}
+                    lote={{
+                      id: lote.id,
+                      nome: lote.nome,
+                      segmento: lote.segmento,
+                      dataArremate: lote.dataArremateTexto,
+                      custoTotal: lote.custoTexto,
+                      atualizadoEm: lote.atualizadoEm,
+                    }}
+                  />
+                ) : null}
 
                 <dl className="grid grid-cols-3 gap-3">
                   <Valor rotulo="Custo" valor={lote.custo} legenda={`${lote.itens} itens`} />

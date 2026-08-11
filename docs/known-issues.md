@@ -11,6 +11,29 @@ Atualizada a cada sync. Itens resolvidos saem daqui.
 
 ## 🔴 Bloqueia o inicio
 
+### ⚠️ O operador pode criar item pela matriz, e nao consegue preencher o formulario
+- **Arquivo(s):** `src/lib/auth/rbac.ts`, `src/lib/actions/estoque-mutacoes.ts`
+- **A contradicao, achada ao construir o CRUD (2026-08-11):** a matriz da ao
+  operador `itens: ["criar","ler","atualizar"]`. Mas criar um item exige
+  **custo** (`itens.custo` e NOT NULL) e exige **escolher um lote** — e a mesma
+  matriz nega `itens_custo` ao operador (RN-107, de proposito) e nega `lotes`
+  por inteiro.
+- **Ou seja:** ele tem a permissao e nenhum caminho para exerce-la.
+- **Como esta hoje:** o cadastro exige as DUAS permissoes (`itens` **e**
+  `itens_custo`), o que na pratica significa administrador. Nao e a matriz que
+  manda aqui — e a impossibilidade de preencher o formulario.
+- **As saidas possiveis, todas decisao do Anderson:**
+  1. **Cadastro e do Anderson.** Bate com o fluxo real (ele arremata e cadastra)
+     e nao muda nada no codigo. A matriz e que sai errada e deve perder
+     `itens: criar` do operador.
+  2. **O operador cadastra sem custo** — exige `itens.custo` NULLABLE e o
+     administrador completando depois. Abre uma janela em que o item existe sem
+     custo, e toda margem que o toque nesse periodo e mentira.
+  3. **O operador cadastra com custo** — mata a RN-107, que e a unica regra
+     cravada do projeto. Descartada, salvo ordem explicita dele.
+- **Por que nao decidi sozinho:** a opcao 2 mexe em coluna de dinheiro e a 3
+  desfaz o sigilo de custo. Nenhuma das duas e escolha de quem escreve o codigo.
+
 ### Auditoria de producao 2026-08-11 — o que impede subir, em ordem
 Seis frentes varreram o repositorio e cada bloqueio passou por um cetico que
 tentou refuta-lo lendo o codigo. O que sobreviveu:

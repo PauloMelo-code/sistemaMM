@@ -323,3 +323,51 @@ Cada regra segue este formato:
   param de entrar **em silencio**, e parece que so nao vendeu. E um POST forjado
   pausa os anuncios reais nos tres canais sem venda nenhuma.
 
+
+### RN-121
+**Cadastro de lote e item e ato do administrador, e todo item nasce com custo.**
+
+- **Contexto**: o ciclo do negocio comeca no leilao — o Anderson arremata um
+  lote e cadastra as pecas. Ate 2026-08-11 nao existia nenhum caminho no sistema
+  para isso: as telas mostravam estoque que so podia entrar por SQL manual.
+- **A regra**:
+  - `lotes` e `itens` sao criados, alterados e excluidos pelo painel, com
+    trilha de auditoria na **mesma transacao** da gravacao.
+  - **Todo item tem custo maior que zero.** A coluna e `NOT NULL` e o validador
+    recusa vazio e zero: custo zero produziria margem de 100% em toda tela do
+    sistema, e um numero errado com cara de certo e pior que a ausencia dele.
+  - **Preco alvo e opcional** e nasce nulo. Vazio significa "ainda nao
+    precificamos"; zero significaria "decidimos vender de graca".
+  - **Segmento e gravado em minusculo.** O banco ja mostrou "Oftalmologia" e
+    "oftalmologia" como segmentos separados — dois chips na tela Estoque e
+    filtros que nao se encontram.
+- **⚠️ QUEM PODE, e a contradicao que sobrou**: a matriz do RBAC da ao operador
+  `itens: criar`, mas nega `itens_custo` e nega `lotes` por inteiro. Como custo e
+  obrigatorio e o formulario exige escolher um lote, **pela matriz de hoje o
+  operador tem permissao de criar um item e nenhum jeito de preencher o
+  formulario**. Enquanto o Anderson nao decidir, o cadastro exige as duas
+  permissoes — na pratica, administrador. Registrado em known-issues.
+- **Impacto se descumprida**: item sem custo derruba a margem, o lance maximo
+  (RN-100) e o custo congelado na venda (RN-114) de uma vez so.
+
+### RN-122
+**Exclusao logica so acontece quando nao deixa orfao nem mente sobre o mundo.**
+
+- **Contexto**: todo delete da casa e logico, e soft delete **nao dispara chave
+  estrangeira**. O banco deixaria passar; a regra vive na action.
+- **A regra**:
+  - **Lote com item ativo nao e excluido.** Sumiria da tela e os itens
+    continuariam apontando para ele — orfaos com FK intacta, que e o pior tipo,
+    porque nada no banco reclama.
+  - **Item com pedido nunca e excluido.** O pedido e dinheiro que entrou: tem
+    taxa, comissao e talvez NF-e amarradas. Excluir deixaria a venda apontando
+    para o vazio no relatorio do mes.
+  - **Item com anuncio no ar nao e excluido antes de o anuncio ser pausado.**
+    Excluir aqui **nao tira o anuncio do canal**: so faz o painel esquecer que
+    ele existe, e a peca continua a venda no Mercado Livre sem ninguem sabendo.
+  - **Item vendido nao muda de custo pelo painel.** O pedido congelou
+    `custo_na_venda` (RN-114), entao alterar depois nao reescreve o mes fechado
+    — mas faria o custo do item divergir do que foi vendido sem nada explicando.
+    Correcao se faz pelo pedido.
+- **Impacto se descumprida**: a mais cara e a do anuncio — o painel diz que o
+  item nao existe e o comprador continua conseguindo compra-lo.

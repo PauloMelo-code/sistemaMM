@@ -35,6 +35,18 @@ export interface ItemNoEstoque {
   /** So para quem pode ver custo (RN-107). Ausente, nao nulo, para os demais. */
   custo?: number;
   precoAlvo?: number | null;
+  /**
+   * Campos do FORMULARIO de edicao. Opcionais pelo mesmo motivo dos de cima:
+   * quem nao pode ver custo tambem nao pode editar (o cadastro exige `itens` E
+   * `itens_custo`), entao nao recebe nem estes.
+   *
+   * Texto exato do banco, nao numero — ver o comentario no mapeamento.
+   */
+  loteId?: string;
+  custoTexto?: string;
+  precoAlvoTexto?: string;
+  localGalpao?: string;
+  atualizadoEm?: string;
 }
 
 export interface KpisEstoque {
@@ -106,6 +118,14 @@ export async function lerEstoque(
       custo: mostrarCusto ? itens.custo : sql<string | null>`NULL`,
       precoAlvo: mostrarCusto ? itens.preco_alvo : sql<string | null>`NULL`,
       /**
+       * Campos que so o FORMULARIO usa. Saem na consulta, mas so entram no
+       * objeto devolvido quando `mostrarCusto` — ou seja, so para quem pode
+       * editar. Quem nao pode nao recebe nem o `lote_id`.
+       */
+      loteId: itens.lote_id,
+      localGalpao: itens.local_galpao,
+      atualizadoEm: itens.updated_at,
+      /**
        * Canais com anuncio ativo, agregados no BANCO. Buscar os anuncios numa
        * segunda consulta e juntar em memoria daria N+1 numa tela que lista o
        * estoque inteiro.
@@ -147,6 +167,13 @@ export async function lerEstoque(
         ...base,
         custo: Number(l.custo ?? 0),
         precoAlvo: l.precoAlvo === null ? null : Number(l.precoAlvo),
+        // Texto EXATO do banco para o formulario. Reeditar a partir do `Number`
+        // acima devolveria um valor que passou por ponto flutuante.
+        loteId: l.loteId,
+        custoTexto: l.custo ?? "",
+        precoAlvoTexto: l.precoAlvo ?? "",
+        localGalpao: l.localGalpao ?? "",
+        atualizadoEm: l.atualizadoEm.toISOString(),
       };
     }),
   };

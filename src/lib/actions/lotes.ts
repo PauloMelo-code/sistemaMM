@@ -32,6 +32,20 @@ export interface LoteNaTela {
   segmento: string;
   arrematadoEm: Date;
   custo: number;
+  /**
+   * Campos que o FORMULARIO precisa, em texto exato do banco.
+   *
+   * `custo` acima e `double precision` para exibir; aqui vai o `numeric` como
+   * string. Reeditar um lote a partir do numero convertido devolveria ao banco
+   * um valor que passou por ponto flutuante — pequeno, mas e dinheiro, e a base
+   * escolheu `numeric` justamente para isso nao acontecer.
+   *
+   * `atualizadoEm` e o que sustenta o optimistic locking: a tela carrega, a
+   * pessoa edita, e o servidor compara para saber se alguem gravou no meio.
+   */
+  custoTexto: string;
+  dataArremateTexto: string;
+  atualizadoEm: string;
   /** Soma do PRECO dos anuncios ativos — nao do estoque inteiro. */
   anunciado: number;
   /** Soma do valor das vendas ja realizadas. */
@@ -53,6 +67,28 @@ export function giroLento(lote: LoteNaTela): boolean {
   return lote.diasDesdeArremate > LENTO_DIAS && custoRecuperado(lote) < 1;
 }
 
+/**
+ * Lotes para o SELETOR do formulario de item — so id, nome e segmento.
+ *
+ * Consulta propria, e nao um reaproveitamento de `lerLotes`: aquela agrega
+ * anuncios, pedidos e contagem de itens por lote, tudo dinheiro que este
+ * seletor nao usa e que o cliente nao precisa receber.
+ */
+export async function listarLotesParaSelecao(
+  papel: Papel,
+): Promise<{ id: string; nome: string; segmento: string }[]> {
+  if (!temPermissao(papel, "lotes", "ler")) return [];
+
+  const linhas = await db.execute<LinhaSql<{ id: string; nome: string; segmento: string }>>(sql`
+    SELECT id, nome, segmento
+    FROM lotes
+    WHERE is_deleted = false
+    ORDER BY data_arremate DESC
+  `);
+
+  return linhas.rows;
+}
+
 export interface EstadoLotes {
   lotes: LoteNaTela[];
   custoTotal: number;
@@ -69,6 +105,9 @@ export async function lerLotes(papel: Papel): Promise<EstadoLotes | null> {
       l.id, l.nome, l.segmento,
       l.data_arremate                    AS "arrematadoEm",
       l.custo_total::double precision    AS custo,
+      l.custo_total::text                AS "custoTexto",
+      l.data_arremate::text              AS "dataArremateTexto",
+      l.updated_at::text                 AS "atualizadoEm",
       -- ANUNCIADO soma o preco dos anuncios ATIVOS, e por isso nao e
       -- comparavel com o custo do lote inteiro: sao conjuntos diferentes de
       -- itens. A tela diz quantos itens cada numero cobre.
@@ -89,7 +128,7 @@ export async function lerLotes(papel: Papel): Promise<EstadoLotes | null> {
     FROM lotes l
     LEFT JOIN itens i ON i.lote_id = l.id AND i.is_deleted = false
     WHERE l.is_deleted = false
-    GROUP BY l.id, l.nome, l.segmento, l.data_arremate, l.custo_total
+    GROUP BY l.id, l.nome, l.segmento, l.data_arremate, l.custo_total, l.updated_at
     ORDER BY l.data_arremate DESC
   `);
 

@@ -20,6 +20,9 @@
 import { redirect } from "next/navigation";
 
 import { lerEstoque, type SituacaoItem } from "@/lib/actions/estoque";
+import { listarLotesParaSelecao } from "@/lib/actions/lotes";
+import { temPermissao } from "@/lib/auth/rbac";
+import { BotaoNovoItem, AcoesItem } from "./_components/formulario-item";
 import { lerSessao } from "@/lib/auth/sessao";
 import { formatarBRL, type Canal } from "@/lib/pricing";
 
@@ -60,17 +63,32 @@ export default async function EstoquePage({
     situacao,
   });
 
-  const colunas = custoOculto ? 5 : 7;
+  /**
+   * Cadastro exige `itens` E `itens_custo` — ver o cabecalho de
+   * `estoque-mutacoes.ts`. Na pratica: administrador. Decidido no SERVIDOR, e
+   * as actions conferem de novo.
+   */
+  const podeEscrever =
+    temPermissao(sessao.papel, "itens", "criar") &&
+    temPermissao(sessao.papel, "itens_custo", "criar");
+
+  // So busca os lotes se houver formulario para preencher.
+  const lotes = podeEscrever ? await listarLotesParaSelecao(sessao.papel) : [];
+
+  const colunas = (custoOculto ? 5 : 7) + (podeEscrever ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-0.5">
-        <h1 className="font-display text-[22px] font-bold text-navy">Estoque</h1>
-        <span className="text-[13px] text-ink-2">
-          {itens.length} {itens.length === 1 ? "item" : "itens"}
-          {segmento || situacao ? " no filtro atual" : ""} · baixa automática quando o item vende
-          em qualquer canal
-        </span>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="font-display text-[22px] font-bold text-navy">Estoque</h1>
+          <span className="text-[13px] text-ink-2">
+            {itens.length} {itens.length === 1 ? "item" : "itens"}
+            {segmento || situacao ? " no filtro atual" : ""} · baixa automática quando o item vende
+            em qualquer canal
+          </span>
+        </div>
+        {podeEscrever ? <BotaoNovoItem lotes={lotes} /> : null}
       </header>
 
       <FiltrosEstoque kpis={kpis} segmentos={segmentos} segmento={segmento} situacao={situacao} />
@@ -90,6 +108,14 @@ export default async function EstoquePage({
               )}
               <th scope="col" className="px-2 py-2.5 font-normal">Canais</th>
               <th scope="col" className="px-4 py-2.5 font-normal">Situação</th>
+              {podeEscrever ? (
+                // Cabecalho sem rotulo visivel, mas COM nome para leitor de
+                // tela: uma coluna anonima e um buraco na tabela para quem nao
+                // ve os botoes.
+                <th scope="col" className="px-4 py-2.5 text-right font-normal">
+                  <span className="sr-only">Ações</span>
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -130,6 +156,29 @@ export default async function EstoquePage({
                         {pill.rotulo}
                       </span>
                     </td>
+                    {podeEscrever ? (
+                      <td className="px-4 py-2.5">
+                        <AcoesItem
+                          lotes={lotes}
+                          item={{
+                            id: item.id,
+                            sku: item.sku,
+                            nome: item.nome,
+                            // `!` seguro: estes campos so existem quando
+                            // `podeEscrever`, que exige a permissao de custo —
+                            // a mesma que faz a action devolve-los.
+                            loteId: item.loteId!,
+                            segmento: item.segmento,
+                            custo: item.custoTexto!,
+                            precoAlvo: item.precoAlvoTexto!,
+                            localGalpao: item.localGalpao!,
+                            situacao: item.situacao,
+                            atualizadoEm: item.atualizadoEm!,
+                            vendido: item.situacao === "vendido",
+                          }}
+                        />
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })
