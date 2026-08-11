@@ -63,6 +63,17 @@ jobs:
         run: npm test
 
       - name: Build
+        # `src/lib/db/index.ts:13-20` valida DATABASE_URL na AVALIACAO do modulo,
+        # e o `next build` avalia toda rota para coletar page data — entao o
+        # build quebra sem a variavel, mesmo sem nunca conectar. Sem este bloco
+        # o job `ci` falha SEMPRE, e como `deploy-hml` e `deploy-prd` tem
+        # `needs: ci`, nenhum deploy jamais chega a rodar.
+        #
+        # O valor e de fachada de proposito: o Pool e criado preguicosamente e
+        # nao abre conexao durante o build. Secret de verdade aqui seria expor
+        # credencial de producao a um job que nao precisa dela.
+        env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
         run: npm run build
 
   # ---------------------------------------------------------------------------
