@@ -138,12 +138,26 @@ fica exatamente onde estava, e o comando pode ser repetido com seguranca.
 
 ## 5. Criar o primeiro usuario
 
-No console do servico:
+**No console web do EasyPanel** (que nao tem TTY), a senha vem por variavel:
+
+```bash
+MM_SENHA='uma-senha-de-12-ou-mais' node scripts/criar-usuario.mjs anderson@mmsolucoes.com.br "Anderson" administrador
+MM_SENHA='outra-senha-de-12-ou-mais' node scripts/criar-usuario.mjs operador@mmsolucoes.com.br "Operador" operador
+```
+
+⚠️ **A senha aparece na tela** — limpe o console depois. Nao ha alternativa num
+terminal sem TTY: o script chegou a tentar ler `stdin` la e **travava sem
+escrever uma palavra**, que e pior que aparecer.
+
+**Num terminal de verdade** (`ssh` na VPS, ou `docker exec -it <container> sh`)
+omita `MM_SENHA` — a senha e pedida oculta, com confirmacao:
 
 ```bash
 node scripts/criar-usuario.mjs anderson@mmsolucoes.com.br "Anderson" administrador
-node scripts/criar-usuario.mjs operador@mmsolucoes.com.br "Operador" operador
 ```
+
+Use o e-mail **completo e real**: `anderson@...` com reticencias e recusado de
+proposito, porque ja foi colado literalmente uma vez.
 
 Sem nome e papel, o mesmo comando so **troca a senha** de quem ja existe — e
 encerra todas as sessoes abertas daquela pessoa, na mesma transacao.

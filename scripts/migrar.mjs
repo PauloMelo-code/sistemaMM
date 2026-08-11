@@ -56,7 +56,10 @@ if (!connectionString) {
   exit(1);
 }
 
-const pool = new pg.Pool({ connectionString, max: 1 });
+// `connectionTimeoutMillis` pelo mesmo motivo do criar-usuario.mjs: sem ele,
+// host errado deixa o comando pendurado sem dizer nada, e trava silenciosa e
+// indistinguivel de script quebrado.
+const pool = new pg.Pool({ connectionString, max: 1, connectionTimeoutMillis: 10_000 });
 const db = drizzle(pool);
 
 try {

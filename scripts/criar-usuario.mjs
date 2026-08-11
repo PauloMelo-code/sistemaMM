@@ -45,6 +45,15 @@ if (!email) {
   console.error(`Papeis: ${PAPEIS.join(" | ")}`);
   exit(1);
 }
+// Conferencia proposital de e-mail, e nao e frescura: o exemplo da documentacao
+// usa `anderson@...` como reticencia, e isso ja foi colado literalmente uma vez.
+// Sem esta trava, nasce um usuario com e-mail impossivel de usar para entrar —
+// e o erro so aparece na hora do login, sem dizer por que.
+if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email)) {
+  console.error(`E-mail invalido: "${email}".`);
+  console.error("Use o endereco completo e real, ex.: anderson@mmsolucoes.com.br");
+  exit(1);
+}
 if (papel && !PAPEIS.includes(papel)) {
   console.error(`Papel invalido: "${papel}". Use um de: ${PAPEIS.join(", ")}`);
   exit(1);
@@ -75,23 +84,48 @@ function urlDoBanco() {
 }
 
 /**
- * Le as duas senhas sem ecoar, numa UNICA interface de readline.
+ * Obtem a senha. DOIS caminhos, e a escolha entre eles nao pode travar.
  *
- * Duas interfaces sobre o mesmo `stdin` sao frageis: a primeira consome o
- * buffer e a segunda espera para sempre. Uma so, usada duas vezes, resolve.
+ * ⚠️ HISTORIA QUE JUSTIFICA ESTE DESENHO, para nao ser "simplificado" de volta:
+ *
+ * A primeira versao lia `stdin` inteiro quando nao havia TTY. No console web do
+ * EasyPanel — que nao e TTY e onde o EOF nunca chega, porque a pessoa esta
+ * digitando — o script **travou sem escrever uma palavra**: sem prompt, sem
+ * erro, sem pista.
+ *
+ * A segunda tentativa usou `readline` com `terminal: false` e duas chamadas de
+ * `question()`. Travou tambem, e ate com entrada canalizada: nesse modo o
+ * readline nao entrega as duas linhas de forma sequencial como se espera.
+ *
+ * A conclusao e que **nao da para distinguir com seguranca** "stdin canalizado
+ * que vai terminar" de "console interativo que nunca termina". Entao o caminho
+ * sem TTY deixa de ler stdin: a senha vem de `MM_SENHA`. E impossivel travar,
+ * e a mensagem diz exatamente o que fazer.
+ *
+ * O custo, dito na cara: em `MM_SENHA=... node ...` a senha aparece na tela e
+ * fica no ambiente do processo. Num container de um cliente so, isso e
+ * aceitavel — e continua melhor que argumento de linha de comando, que fica no
+ * `ps` durante toda a execucao. Com TTY de verdade (ssh, `docker exec -it`) o
+ * prompt oculto continua sendo o caminho preferido.
  */
-async function pedirSenhas() {
-  // SEM TTY (entrada canalizada, CI): o readline dispara todas as linhas de uma
-  // vez e um segundo `question` nunca recebe nada. Lendo o stdin inteiro, o
-  // comportamento e deterministico — e nao se perde protecao, porque o que a
-  // ocultacao protege e a tela do terminal, que aqui nao existe.
-  if (!stdin.isTTY) {
-    let bruto = "";
-    for await (const pedaco of stdin) bruto += pedaco;
-    const linhas = bruto.split(/\r?\n/);
-    return [linhas[0] ?? "", linhas[1] ?? ""];
+async function obterSenha() {
+  if (stdin.isTTY !== true) {
+    const doAmbiente = env.MM_SENHA;
+    if (!doAmbiente) {
+      console.error("Este terminal nao tem TTY, entao nao da para pedir a senha com seguranca.");
+      console.error("");
+      console.error("Rode assim (a senha vai aparecer na tela — limpe o console depois):");
+      console.error(`  MM_SENHA='sua-senha-aqui' node scripts/criar-usuario.mjs ${email}${nome ? ` "${nome}"` : ""}${papel ? ` ${papel}` : ""}`);
+      console.error("");
+      console.error("Ou rode de um terminal com TTY (ssh na VPS, ou `docker exec -it`),");
+      console.error("onde a senha e pedida oculta.");
+      exit(1);
+    }
+    return doAmbiente;
   }
 
+  // COM TTY: uma unica interface de readline, com o eco desligado.
+  // `_writeToOutput` vazio e o que impede a senha de aparecer na tela.
   const rl = createInterface({ input: stdin, output: stdout, terminal: true });
   rl._writeToOutput = () => {};
 
@@ -105,7 +139,13 @@ async function pedirSenhas() {
     });
 
   try {
-    return [await perguntar(`Senha para ${email}: `), await perguntar("Repita a senha: ")];
+    const primeira = await perguntar(`Senha para ${email}: `);
+    const segunda = await perguntar("Repita a senha: ");
+    if (primeira !== segunda) {
+      console.error("As senhas nao conferem. Nada foi alterado.");
+      exit(1);
+    }
+    return primeira;
   } finally {
     rl.close();
   }
@@ -117,8 +157,20 @@ if (!connectionString) {
   exit(1);
 }
 
-const cliente = new pg.Client({ connectionString });
-await cliente.connect();
+// `connectionTimeoutMillis` para o script FALAR quando o banco nao responde.
+// Sem ele, host errado ou porta fechada deixam o `connect()` pendurado para
+// sempre — e o sintoma na tela e identico ao de um script travado por outro
+// motivo. Dez segundos e generoso para rede interna de container.
+const cliente = new pg.Client({ connectionString, connectionTimeoutMillis: 10_000 });
+
+try {
+  await cliente.connect();
+} catch (erro) {
+  console.error("Nao consegui falar com o banco.");
+  console.error(`  ${erro.message}`);
+  console.error("Confira DATABASE_URL — o host precisa ser alcancavel DE DENTRO deste container.");
+  exit(1);
+}
 
 try {
   // `"user"` COM ASPAS: `user` e palavra reservada do Postgres. Sem as aspas o
@@ -136,12 +188,8 @@ try {
     exit(1);
   }
 
-  const [senha, confirmacao] = await pedirSenhas();
+  const senha = await obterSenha();
 
-  if (senha !== confirmacao) {
-    console.error("As senhas nao conferem. Nada foi alterado.");
-    exit(1);
-  }
   if (senha.length < TAMANHO_MINIMO) {
     console.error(`A senha precisa de pelo menos ${TAMANHO_MINIMO} caracteres.`);
     exit(1);
