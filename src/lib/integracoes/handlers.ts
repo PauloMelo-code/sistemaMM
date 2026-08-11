@@ -51,5 +51,22 @@ export function chaveHandler(canal: string, topico: string | null): string {
   return `${canal}:${topico ?? ""}`;
 }
 
-/** O registro. Vazio ate existir credencial — ver o cabecalho deste arquivo. */
+/** O registro. Ver o cabecalho deste arquivo antes de acrescentar. */
 export const HANDLERS = new Map<string, Handler>();
+
+// Venda no Mercado Livre (RN-104, RN-112). O handler busca o pedido na API com
+// o nosso token — sem credencial ele falha na primeira chamada, e o evento fica
+// na fila com o erro visivel, que e o comportamento desejado: nada e deduzido
+// do corpo do POST.
+//
+// O `import` e DINAMICO de proposito, e nao por estilo: `handler-venda` importa
+// `db`, e importar `db` instancia um Pool do Postgres na avaliacao do modulo.
+// Estaticamente, este arquivo deixaria de ser puro e `worker.test.ts` — que
+// importa `chaveHandler` daqui — passaria a exigir banco no ar so para carregar.
+// Registrar aqui dentro (em vez de num `registro.ts` a parte) tambem impede o
+// modo de falha silencioso em que alguem esquece de importar o registro e a
+// fila simplesmente nunca processa nada.
+HANDLERS.set(chaveHandler("mercado_livre", "orders_v2"), async (evento) => {
+  const { handlerVendaML } = await import("./mercado-livre/handler-venda");
+  await handlerVendaML(evento);
+});
