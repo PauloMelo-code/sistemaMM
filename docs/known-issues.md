@@ -160,15 +160,46 @@ venda.
   perguntava "por que isto e uma tarefa?". Vale como lembrete de onde os testes
   desta base nao alcancam.
 
-### Nao existe autenticacao — e o RBAC da RN-107 depende dela
-- **Arquivo(s):** `src/lib/` (nao ha `auth/`)
-- **Situacao:** a tabela `usuarios` existe com os 3 papeis, mas nao ha sessao,
-  login nem `temPermissao()`. O arquivo-ouro `templates/server-action.ts` importa
-  `@/lib/auth`, que ainda nao existe.
-- **Por que importa:** RN-107 (operador nao ve custo) e filtro **de servidor**.
-  Sem auth, o primeiro CRUD nasce sem como aplicar a regra.
-- **Acao sugerida:** decidir o provedor (ver `docs/oauth.md`) antes do primeiro
-  `/criar-crud`.
+### Autenticacao existe, mas ninguem tem senha ainda
+- **Arquivo(s):** `src/lib/auth/{senha,sessao,rbac,politica-login}.ts`,
+  `src/lib/actions/auth.ts`, `src/app/login/`, `src/middleware.ts`,
+  `scripts/definir-senha.mjs`
+- **O que existe (2026-08-11):** login com senha (scrypt), sessao em tabela com
+  token guardado como hash, middleware, matriz de RBAC e a RN-107 com mecanismo
+  de filtro no servidor.
+- **O QUE FALTA PARA USAR:** ninguem tem senha. Rode, no seu terminal:
+  `node scripts/definir-senha.mjs anderson@mmsolucoes.com.br` — a senha e pedida
+  oculta e nunca vira argumento de linha de comando (`history`, `ps`, log).
+  **Nao passe senha real em chat, ticket ou para uma IA.**
+- **⚠️ DIVERGE de `docs/oauth.md`, que manda bcrypt.** Usamos `scrypt` da stdlib
+  do Node: bcrypt seria dependencia nova (o CLAUDE.md proibe instalar sem
+  autorizacao) e o scrypt e memory-hard, o que encarece ataque com GPU. Decidido
+  com o Paulo em 2026-08-11. **O `oauth.md` continua desatualizado neste ponto.**
+- **⚠️ `maxmem` do scrypt e obrigatorio.** `N=32768, r=8` usa ~33,5 MB, acima do
+  teto padrao de 32 MB do Node. Sem declarar, o scrypt LANCA em toda chamada — e
+  como `conferirSenha` engole excecao para nao vazar informacao, **todo login
+  falharia dizendo so "credenciais invalidas"**. Nao mexa nos parametros sem
+  revisar essa linha.
+- **A checagem que vale mora no LAYOUT de `(painel)`, nao no middleware.** O
+  middleware roda no edge, nao alcanca o banco e so confere se EXISTE cookie —
+  cookie forjado passa por ele. Isso foi comprovado: antes de `lerSessao()` no
+  layout, `/perguntas` respondia 200 com cookie inventado. **Nunca troque a
+  checagem do layout por "o middleware ja garantiu".**
+- **Verificado nos seis estados:** sessao valida entra; cookie forjado, sessao
+  vencida, usuario desligado e sessao encerrada sao barrados; reativar volta a
+  entrar. Desligar alguem tem efeito na requisicao seguinte — e por isso a
+  sessao e tabela e nao JWT.
+- **NAO verificado:** o formulario de login ponta a ponta. Postar em server
+  action por `curl` exige o protocolo interno do Next; precisa de um clique real
+  no navegador. O que esta coberto por teste e o hash, a matriz e a politica de
+  bloqueio.
+- **Nao construido:** recuperacao de senha por e-mail (exige servico de e-mail,
+  nao decidido) e a aplicacao da RN-107 tela a tela — o mecanismo existe
+  (`podeVerCusto`, `semCusto`), mas hoje so ha Perguntas e Integracoes, e
+  nenhuma mostra custo. **Toda tela nova com dinheiro precisa usa-lo.**
+- **A matriz do `docs/rbac.md` continua sendo PROPOSTA**, nao validada com o
+  Anderson. So a RN-107 esta cravada. Ela vive num lugar so (`auth/rbac.ts`)
+  justamente para a validacao mudar uma tabela, e nao vinte `if`.
 
 ### Credenciais do Mercado Livre — nao temos
 - **Modulo:** Anuncios, Perguntas, Pedidos, Integracoes, Relatorios
@@ -235,7 +266,8 @@ venda.
   fixas com `CUSTO` no meio: sem a coluna, o layout nao esta definido.
 - **Por que importa:** o operador e 1 dos 2 usuarios do painel e o escopo
   contratado inclui 5 semanas treinando ele. Nao existe desenho do que ele ve.
-  Casa com "Nao existe autenticacao" e com "Matriz de permissoes e rascunho".
+  Casa com "Autenticacao existe, mas ninguem tem senha ainda" e com a matriz de
+  RBAC, que segue sendo proposta.
 - **Acao sugerida:** definir a variante de operador das tres telas antes de
   portar qualquer uma delas — e uma decisao de layout, nao so de permissao.
 
@@ -311,6 +343,77 @@ venda.
 ---
 
 ## 🟡 Investigar
+
+### `itens.segmento` e texto livre — "Oftalmologia" e "oftalmologia" sao dois
+- **Arquivo(s):** `src/lib/db/schema/itens.ts`, `lotes.ts`
+- **Situacao:** achado ao portar a tela Estoque (2026-08-11). Os chips de
+  segmento saem de `SELECT DISTINCT segmento`, e o banco mostrou **`Oftalmologia`
+  e `oftalmologia` como segmentos separados** — dois chips, filtros que nao se
+  encontram, e itens que somem de uma busca que deveria acha-los.
+- **Por que e texto livre:** de proposito — o conjunto de segmentos cresce a cada
+  leilao, e um enum exigiria migracao a cada categoria nova (esta escrito no
+  proprio schema).
+- **Acao sugerida:** decidir entre normalizar na gravacao (minusculo + capitalizar
+  na exibicao), tabela de segmentos com FK, ou aceitar e agrupar por
+  `lower(segmento)` nas consultas. **Nao e so cosmetico:** a tela Estoque filtra
+  por segmento, e o KPI "Sem anuncio" combinado com segmento errado esconde item
+  parado.
+
+### ✅ CORRIGIDO em 2026-08-11: o porteiro migrou de `middleware` para `proxy`
+- **Arquivo(s):** `src/proxy.ts` (era `src/middleware.ts`)
+- **Era:** o Next 16 depreciou a convencao `middleware`. Funcionava, mas quando
+  a convencao antiga for removida o arquivo simplesmente deixa de ser carregado
+  — **sem erro nenhum**, e o redirecionamento para de acontecer em silencio.
+- **Ficou:** arquivo renomeado e a funcao exportada passou de `middleware` para
+  `proxy`. Feito **a mao**, e nao pelo codemod oficial: ele exigia `--force`
+  sobre a arvore inteira, e a mudanca real e um rename de arquivo mais um de
+  funcao. Varrer o projeto todo para isso e risco sem contrapartida.
+- **Verificado:** o aviso do build sumiu, e os **oito** casos do porteiro foram
+  repetidos — sem cookie, sessao valida, cookie forjado, sessao vencida, usuario
+  desligado, reativado, sessao encerrada, e as rotas de maquina (webhook)
+  continuando livres. Migracao de porteiro so vale com o teste do porteiro.
+- **Nao volte a chamar de middleware.**
+
+### Reconciliacao: existe e fecha o laco, mas so olha PEDIDOS
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/reconciliacao.ts`,
+  `busca-pedidos.ts`, `src/lib/db/schema/integracoes-sincronizacoes.ts`,
+  `src/app/api/integracoes/reconciliar/route.ts`
+- **O que resolve:** nenhum marketplace garante 100% de entrega. Se uma venda se
+  perder, o sistema **nao sabe que nao soube** — idempotencia nao pega evento que
+  nunca chegou. A reconciliacao lista os pedidos do canal e compara com os
+  nossos.
+- **Como corrige, e o quanto NAO corrige:** achando pedido pago que nao temos,
+  ela grava um **evento sintetico** em `integracoes_eventos`, como se o webhook
+  tivesse chegado — e quem processa e o handler de venda que ja existe.
+  **Nenhuma rota de correcao paralela**, que seria uma segunda implementacao da
+  mesma regra para divergir depois. Esse e o UNICO caso auto-corrigido.
+- **Verificado (2026-08-11)** contra ML falso, removido depois: pedido perdido
+  virou venda completa passando pelo handler normal; reconciliar de novo nao
+  reinjeta (o corpo do evento e deterministico, entao a chave colide); a marca
+  d'agua avanca e a segunda passada pagina menos.
+- **⚠️ AINDA E DECISAO DO ANDERSON: corrige sozinho ou so reporta?** O que esta
+  implementado e a recomendacao da analise de corretude, nao confirmacao dele.
+- **A lacuna que mais pesa: ANUNCIO divergente nao e detectado.** A comparacao
+  so olha pedidos. O caso "nos dizemos vendido e o canal diz ativo" — que e onde
+  a decisao acima realmente importa, porque corrigir sozinho pausaria anuncio
+  certo por leitura errada — nao chega nem a ser visto.
+- **O filtro de data da busca NAO foi confirmado.** `/orders/search` aceita
+  `seller`, `sort`, `limit` e `offset` (confirmados); o nome do parametro de data
+  nao. Por isso o corte pela marca d'agua e feito por NOS, paginando em
+  `sort=date_desc` ate alcanca-la. Ha teste garantindo que a URL nao carrega
+  parametro nao confirmado — **um "otimizador" chutado pode ser ignorado em
+  silencio pelo ML e fazer a busca varrer o historico inteiro**.
+- **Passada truncada nao avanca a marca**, de proposito: avancar deixaria para
+  tras um vao que ninguem conferiria nunca mais. Primeira execucao (sem marca)
+  vai ate o teto de 10 paginas — reconstruir historico nao e trabalho dela.
+- **Falta o alarme de obsolescencia.** `ultimo_sucesso_em` existe e e alimentado
+  (separado de `updated_at` justamente porque a linha e tocada tambem no erro),
+  mas **ninguem le**: nao ha job que compare com "agora" nem card vermelho na
+  tela Integracoes. Sem isso, uma reconciliacao que parou de rodar e
+  indistinguivel de uma que nao acha nada.
+- **Ninguem agenda.** A rota `/api/integracoes/reconciliar` existe e e separada
+  do worker de proposito (cadencias e custos diferentes), mas nada a chama —
+  mesmo ADR de agendamento, ainda aberto.
 
 ### OAuth do ML: pronto e verificado, mas so destrava com o app registrado
 - **Arquivo(s):** `src/lib/integracoes/mercado-livre/oauth.ts`,
@@ -763,23 +866,29 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
   Depende da tela de Estoque existir — portar a Calculadora depois dela, ou
   deixar o gancho previsto. Casa com "Frete e margem nao sao guardados" (🟡).
 
-### Lotes — o rotulo "ANUNCIADO" e ambiguo
-- **Situacao:** `Lote 14 · CUSTO R$ 41.000 · ANUNCIADO R$ 47.400` le-se como
-  "+6.400 de lucro", mas so 4 dos 9 itens estao anunciados — os dois numeros nao
-  sao comparaveis. O Lote 11 mostra ANUNCIADO 14.300 **abaixo** do CUSTO 18.500
-  sem nenhum destaque.
-- **Por que importa:** e a tela que responde "o lote se pagou?".
-- **Acao sugerida:** rotular o que a soma cobre (ex.: "anunciado · 4 de 9 itens")
-  e definir com o Anderson qual e o alerta real de lote no vermelho — hoje so
-  existe o de giro lento.
+### ✅ CORRIGIDO em 2026-08-11: o rotulo "ANUNCIADO" em Lotes era ambiguo
+- **Era:** `Lote 14 · CUSTO R$ 41.000 · ANUNCIADO R$ 47.400` lia-se como
+  "+6.400 de lucro", mas so 4 dos 9 itens estavam anunciados — os dois numeros
+  cobrem conjuntos diferentes. E o Lote 11 mostrava ANUNCIADO **abaixo** do
+  CUSTO sem nenhum destaque.
+- **Ficou:** cada valor diz o que soma ("2 de 5 itens"), e quando
+  `anunciado + vendido < custo` aparece um aviso ambar dizendo quanto falta e
+  quantos itens estao sem anuncio. Verificado com um lote nessa condicao.
+- **⚠️ O alerta de "lote no vermelho" continua indefinido** — o que existe e o
+  de giro lento (abaixo). Segue pendente com o Anderson.
 
-### Integracoes — a tela e so leitura
-- **Situacao:** 5 cards com pill de status e **nenhum botao**. Nao ha reconectar,
-  testar conexao nem configurar. O estado desconectado nao foi desenhado.
-- **Por que importa:** token OAuth expira. Quando o ML cair, 4 das 12 telas
-  envelhecem em silencio e o Anderson nao tem o que fazer na tela.
-- **Acao sugerida:** desenhar o estado de erro e incluir acao de reconectar e de
-  testar por card.
+### ✅ CORRIGIDO em 2026-08-11: Integracoes era so leitura, sem estado de erro
+- **Era:** 5 cards com pill de status fixa e **nenhum botao**. Nao havia
+  reconectar, testar conexao nem configurar, e o estado desconectado nao existia
+  no desenho — token OAuth expira, e quando o ML caisse, quatro das doze telas
+  envelheceriam em silencio.
+- **Ficou:** pills reais vindas do banco, faixa de alerta quando ha o que dizer,
+  e bloco de fila e conferencia. Detalhes e as regras que regem os alertas na
+  entrada 🟢 "A tela Integracoes DIVERGE do prototipo".
+- **O que NAO foi feito:** os botoes. Qualquer um deles dispara acao
+  privilegiada e, sem autenticacao (🔴), o segredo iria no HTML da pagina.
+
+> **Atualizacao 2026-08-11:** a autenticacao passou a existir (`src/lib/auth/`). O que trava agora e so definir a senha do administrador (`node scripts/definir-senha.mjs <email>`) e ligar estas acoes a `lerSessao()` + `temPermissao()`. Deixa de ser "nao da" e vira "falta fazer".
 
 ### Site/CMS — dois botoes de publicar e nenhuma guarda de edicao
 - **Situacao:** "Publicar alteracoes" (header) e "Salvar e publicar" (editor)
@@ -794,11 +903,19 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
   foto" bloqueando o toggle.
 
 ### Anuncios, Estoque e Pedidos — sem busca, ordenacao ou acao por linha
-- **Situacao:** nenhuma das tres tabelas tem campo de busca, ordenacao por coluna
-  ou acao na linha. Nao da para abrir, editar ou pausar um anuncio a partir da
-  tela de Anuncios — o objeto principal da tela principal nao e clicavel.
+- **Situacao:** nenhuma das tres tabelas tem campo de busca, ordenacao por
+  coluna ou acao na linha. Nao da para abrir, editar ou pausar um anuncio a
+  partir da tela de Anuncios — o objeto principal da tela principal nao e
+  clicavel.
 - **Por que importa:** 16 anuncios e 51 itens cabem na tela hoje; o negocio e
   giro de estoque e esses numeros so crescem.
+- **Parcialmente resolvido em Anuncios (2026-08-11):** ha **filtro por canal e
+  por status, pela URL** (`/anuncios?canal=olx&status=no_ar`), os dois eixos
+  combinaveis. Continua sem busca por texto, sem ordenacao por coluna e sem
+  acao por linha — pausar um anuncio ainda so acontece por venda em outro canal.
+- **A ordenacao atual e por VISITAS (desc)**, escolha minha, nao do handoff:
+  numa tela sem ordenacao clicavel, o mais util e o que tem mais gente olhando.
+  Quando a ordenacao entrar, isso vira so o padrao inicial.
 
 ### Perguntas — nao existe onde digitar a resposta
 - **Arquivo(s):** `src/app/(painel)/perguntas/_components/lista-perguntas.tsx`
@@ -831,19 +948,22 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
   como constante e registrar em ADR que e conteudo fixo de produto.
 
 ### Defeitos visuais e lacunas menores
-- **Pedidos:** os 4 cards de resumo financeiro (Faturamento, Taxas, Comissoes,
-  Liquido) ficam **abaixo da dobra**, depois de 5 linhas de tabela — e sao o que
-  o dono abre a tela para ver. Subir para o topo ou fixar.
-- **Estoque:** o KPI "Sem anuncio · 12" nao filtra a tabela; os chips so filtram
-  segmento. O sistema aponta o problema e nao deixa ir ate ele.
+- **Pedidos:** ✅ CORRIGIDO em 2026-08-11 — os 4 cards subiram para ANTES da
+  tabela. Tambem entrou seletor de mes, que o prototipo nao tinha (cravava
+  "Agosto"), com o periodo saindo de `vendido_em` e nao de `created_at`
+  (RN-114).
+- **Estoque:** ✅ CORRIGIDO em 2026-08-11 — os KPIs viraram links e filtram a
+  tabela (`/estoque?situacao=sem_anuncio`). Clicar no KPI ja ativo desliga o
+  filtro, senao o card viraria beco sem saida.
 - **Equipe:** as pills de papel colidem com o texto da descricao ("Em
   treinamento" por cima de "sem acesso a custos"). Nao ha editar nem remover
   papel — tela de RBAC sem controle de RBAC.
 - **Relatorios:** periodo fixo em "ultimos 3 meses", sem seletor, e sem margem ao
   longo do tempo — sendo margem o KPI de destaque da Visao geral.
-- **Quebras de linha em numeros:** `R$ / 38.400` (Visao geral), `R$ / 5.820`
-  (Calculadora), `Publicar / alteracoes` (CMS). Mesma raiz das tabelas: grid
-  fixo sem minimo.
+- **Quebras de linha em numeros:** `R$ / 38.400` (Visao geral) ✅ corrigido em
+  2026-08-11 — os KPIs usam `min-w-0` + `truncate`, entao o numero cabe ou
+  corta, mas nunca dobra. Faltam `R$ / 5.820` (Calculadora) e
+  `Publicar / alteracoes` (CMS), que sao as mesmas duas linhas de CSS.
 - **Calculadora:** entrada crua (`3300`) e saida formatada (`R$ 7.553`) — sem
   separador de milhar enquanto digita. Padronizar a mascara.
 - **Site publico:** a nav de categorias quebra em duas linhas com alinhamentos
@@ -1043,6 +1163,173 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
 ---
 
 ## 🟢 Intencional (nao "corrigir" sem perguntar)
+
+### A tela Lotes: negada por inteiro ao operador, e "giro lento" e chute meu
+- **Arquivo(s):** `src/app/(painel)/lotes/`, `src/lib/actions/lotes.ts`
+- **A rota e `/lotes`.** No prototipo, `state.screen === 'estoque'` E a tela
+  Lotes. A inversao fica la.
+- **PRIMEIRA tela negada por INTEIRO a um papel.** Diferente de Anuncios ou
+  Estoque, onde o operador ve uma versao reduzida, um lote e custo de arremate
+  do primeiro ao ultimo campo — sem os valores sobra o nome. Ele recebe uma
+  pagina de **acesso negado explicita**: redirect silencioso pareceria link
+  quebrado, e lista vazia seria mentira ("nenhum lote").
+- **O item "Lotes" some do MENU dele.** Esconder e correto aqui, e nao
+  desabilitar: link que ele nunca vai poder abrir e ruido permanente no menu
+  que ele usa o dia inteiro. **A pagina continua barrando por conta propria** —
+  menu escondido nunca e a unica protecao.
+- **⚠️ "GIRO LENTO" E CRITERIO MEU, NAO REGRA DO CLIENTE.** O prototipo pinta
+  ambar e nunca define o que e. Usei: passou de **90 dias** do arremate e o lote
+  ainda nao recuperou o custo. Os 90 dias sao chute — um trimestre, defensavel
+  para equipamento usado de ticket alto, e nada mais. A propria tela diz que o
+  criterio e proposta. **Confirmar com o Anderson**; muda `LENTO_DIAS`.
+- **A barra e "% do custo recuperado"** = `vendido / custo`, formula deduzida do
+  proprio prototipo (as larguras 41% e 38% batem com os numeros dos cards).
+  Passa de 100% quando o lote se pagou: a barra para em 100 e o texto ao lado
+  mostra o numero real.
+- **Verificado:** administrador ve os dois lotes com os valores certos
+  (41% recuperado, "2 de 5 itens", giro lento de 120 dias); o operador recebe
+  acesso negado, **nenhum valor no HTML** e nenhum link de Lotes no menu.
+
+### A tela Visao geral: duas definicoes que eu escolhi, e ambas sao discutiveis
+- **Arquivo(s):** `src/app/(painel)/page.tsx`, `src/lib/actions/visao-geral.ts`
+- **A raiz `/` agora e a Visao geral.** O `src/app/page.tsx` placeholder (que
+  listava os docs) foi removido.
+- **⚠️ "Margem media" nao estava definida em lugar nenhum.** Escolhi a margem
+  **realizada e ponderada pelo valor**: `sum(liquido - custo_na_venda) /
+  sum(valor)` das vendas do mes. Alternativa descartada: media das margens dos
+  anuncios ativos, que e hipotetica e muda quando alguem corrige um rateio de
+  lote. Ponderada, e nao media simples, porque media simples daria o mesmo peso
+  a uma venda de R$ 500 e a uma de R$ 50.000. **Se o Anderson entender outra
+  coisa por "margem media", muda esta consulta.**
+- **⚠️ "Tempo medio de resposta" e OTIMISTA e a tela avisa** ("conta da nossa
+  gravacao"): mede de `created_at` ate `respondida_em`, e a RN-118 pede de
+  `criada_em_canal`, que nao existe. Atraso de ingestao desaparece da conta.
+- **"Perguntas recentes" mostra as mais URGENTES**, nao as mais recentes. Numa
+  tela de resumo o que importa e o que esta prestes a estourar o SLA — os dois
+  criterios so coincidem enquanto nada atrasa.
+- **Para o operador a tela encolhe e DIZ isso.** Sobram os dois indicadores de
+  perguntas; vendas, margem e lotes somem, e um texto explica que sao restritos
+  (RN-107). Mostrar zeros seria mentira; silencio pareceria sistema quebrado.
+  Comprovado: administrador recebe `R$ 7.553 / 38% / 4 / 3h 32min`; o operador
+  recebe `4 / 3h 32min` e nenhum valor.
+
+### A tela Pedidos: cards no topo, mes na URL e marca de "a conferir"
+- **Arquivo(s):** `src/app/(painel)/pedidos/`, `src/lib/actions/pedidos.ts`
+- **Os cards de resumo vem ANTES da tabela**, ao contrario do prototipo. Eram o
+  achado da auditoria: ficavam abaixo da dobra, e sao o que o dono abre a tela
+  para ver. Nao devolva para o rodape.
+- **RN-107 tira MAIS aqui:** somem `Valor`, `Taxa` **e os quatro cards
+  inteiros**. Um total e tao revelador quanto a linha — quem soma os pedidos do
+  mes sabe o faturamento —, entao para o operador os totais **nem sao
+  calculados**. Comprovado: administrador recebe `R$ 12.753 / −R$ 1.317 /
+  −R$ 510 / R$ 10.926`; o operador nao recebe valor nenhum.
+- **O marcador "•" de nao-conciliado tambem e so para quem ve dinheiro** — ele
+  fala de VALORES nao conferidos, e para o operador seria ruido sobre um estado
+  que ele nem consegue observar.
+- **Pedido CANCELADO aparece na tabela e fica FORA dos totais.** Ele existiu,
+  gerou taxa e talvez NF-e (por isso nao e exclusao logica), mas nao entrou
+  dinheiro. Verificado: um pedido cancelado de R$ 9.000 aparece na lista e nao
+  soma no faturamento.
+- **Os totais sao somados no BANCO**, nao a partir da lista em memoria: se a
+  lista ganhar paginacao um dia, um total que soma "so a pagina atual" seria um
+  numero errado com cara de certo.
+- **O intervalo do mes e SEMIABERTO** (`>= inicio AND < fim`), nao `BETWEEN`:
+  com `<= ultimo dia`, venda as 23h30 do dia 31 ficaria de fora. Perder a venda
+  do ultimo dia do mes e o jeito classico de o relatorio nao bater.
+- **O seletor deixa navegar para meses FUTUROS** de proposito: e assim que se
+  confere se algo caiu no mes errado — o bug que a RN-114 existe para evitar.
+- **⚠️ A comissao de 4% incide sobre o BRUTO**, premissa nao confirmada
+  (RN-108 🔴). A faixa ambar avisa quantos pedidos estao "a conferir" e diz por
+  que. Quando o Anderson confirmar a base, muda `resultadoDaVenda` — nao a tela.
+- **"WA" virou "Direta"** na coluna Canal: a auditoria registrou que a sigla nao
+  e obvia, e aqui cabia o rotulo por extenso.
+
+### A tela Estoque: rota `/estoque`, KPIs que filtram e DUAS colunas ocultas
+- **Arquivo(s):** `src/app/(painel)/estoque/`, `src/lib/actions/estoque.ts`
+- **A rota e `/estoque`, nao `/itens`.** No prototipo, `state.screen === 'itens'`
+  E a tela Estoque e `'estoque'` e a tela Lotes. A inversao nao foi propagada
+  para o codigo, como manda a invariante — nao "corrija" para bater com o state.
+- **RN-107 tira DUAS colunas, nao uma:** `Custo` **e** `Preco alvo`. O preco alvo
+  sai da formula da RN-100 a partir do custo, entao mostrar um entrega o outro
+  por aritmetica. Comprovado: na mesma pagina, o administrador recebe os cinco
+  custos e os quatro precos alvo; o operador **nao recebe nenhum dos nove**.
+  Os campos nem entram na consulta quando o papel nao pode ve-los.
+- **A variante do operador (5 colunas) e proposta minha**, nao do handoff —
+  segue valendo o 🔴 "nenhuma tela do operador foi desenhada".
+- **Os KPIs sao LINKS** e filtram a tabela; clicar no ja ativo desliga o filtro.
+  Era o achado *"o sistema aponta o problema e nao deixa ir ate ele"*.
+- **Os KPIs contam o estoque INTEIRO, nunca o filtro.** Se acompanhassem, clicar
+  em "Sem anuncio · 12" faria o KPI virar 12 de 12 e o painel deixaria de dizer
+  quanto do estoque tem problema.
+- **Os chips de segmento saem do BANCO**, nao da lista fixa do handoff (mock).
+- **A nota sobre "Reservados" so aparece quando o numero e ZERO** — e vai ser
+  sempre, ate a RN-119 ser decidida. Sem ela, "Reservados 0" pareceria operacao
+  tranquila em vez de recurso que ninguem implementou. Verificado nos dois
+  estados.
+
+### A tela Anuncios: `<table>` semantica, filtro na URL e margem so para quem pode
+- **Arquivo(s):** `src/app/(painel)/anuncios/`, `src/lib/actions/anuncios.ts`,
+  `margemDoAnuncio` em `src/lib/pricing.ts`
+- **`<table>` de verdade, nao grid de `<span>`** — como a auditoria pediu. E o
+  que conserta de uma vez a colisao de colunas (o nome do produto era pintado
+  por cima da coluna seguinte abaixo de ~1100px) e a acessibilidade. Quem rola e
+  o conteiner da tabela (`overflow-x-auto` + `min-w`), **nunca o corpo da
+  pagina**. Nao volte para grid de span "para ficar igual ao prototipo".
+- **Filtro na URL, nao em estado de cliente.** Vira link compartilhavel, resiste
+  ao F5 e ao botao voltar, e dispensa JavaScript. Canal e status sao eixos
+  INDEPENDENTES: clicar em "Pausados" preserva o canal escolhido. Valor invalido
+  na query string e ignorado, nao vira erro — query string e coisa que as
+  pessoas editam e colam.
+- **RN-107 aplicada de verdade, e esta foi a PRIMEIRA tela em que ela morde.**
+  Margem deriva de custo (quem tem preco e margem calcula o custo de cabeca),
+  entao para o operador a margem **nao e calculada nem enviada** — a coluna
+  some e o campo nem existe no payload. Comprovado: na mesma pagina, o
+  administrador recebe `38%`, `33%`, `45%`, `-14%`; o operador nao recebe
+  percentual nenhum, e o custo bruto nao aparece para nenhum dos dois.
+- **A variante do operador e proposta minha**, nao do handoff — que so desenhou
+  a visao do administrador (🔴 "nenhuma tela do operador foi desenhada").
+  Tirei a coluna e recalculei o grid. Se o Anderson preferir outra coisa (ex.:
+  "acima/abaixo da meta" sem o numero), muda so aqui.
+- **`margemDoAnuncio` nasceu em `pricing.ts`**, como o proprio arquivo mandava —
+  nunca no componente. Ha teste provando que ela e a INVERSA EXATA de
+  `calcularPreco`: anunciar por P para ter margem M e, na volta, ler M em P. Se
+  divergirem, o painel discorda de si mesmo.
+- **⚠️ A margem esta OTIMISTA, e a tela diz isso.** A base do calculo deveria
+  incluir frete, e o sistema nao guarda frete por item (lacuna 🔵 propria). A
+  nota ambar do rodape avisa em vez de deixar o verde passar por exato — mesma
+  postura do `frete_saida = 0` no handler de venda.
+
+### A tela Integracoes DIVERGE do prototipo — pills reais e faixa de alerta
+- **Arquivo(s):** `src/app/(painel)/integracoes/page.tsx`,
+  `_components/alertas.tsx`, `src/lib/actions/integracoes.ts`
+- **O que o prototipo tinha:** cinco cards com pill **"Conectado" fixa** e nenhum
+  estado de erro. A auditoria de usabilidade registrou isso como o defeito
+  principal desta tela: token OAuth expira, e quando o ML cai, quatro das doze
+  telas envelhecem **em silencio** — o painel continua com cara de saudavel e o
+  Anderson descobre pelo cliente.
+- **O que ficou:** a pill sai do banco (`Conectado` / `Vence em breve` /
+  `Reconectar` / `A configurar`), cada card mostra a conta e quando o acesso
+  renova, e ha faixa de alerta quando existe algo a dizer. No fim, um bloco
+  "Fila e conferencia" com notificacoes e acoes paradas.
+  **Nao alinhe esta tela ao `screenshots/11-integracoes.png` nesses pontos.**
+- **A regra que rege os alertas: "nunca executou" NAO e alarme.** Nada agenda a
+  reconciliacao ainda; tratar `ultimo_sucesso_em` nulo como obsolescencia faria a
+  tela nascer vermelha e ficar vermelha, e em uma semana ninguem mais olharia.
+  Falta de setup e texto informativo; so o que **estava funcionando e parou**
+  vira faixa. Mesma razao de a faixa sumir quando nao ha nada: ambar e alerta,
+  nunca decoracao (design-system.md).
+- **Os textos dizem a CONSEQUENCIA, nao o sintoma.** "O token venceu" nao move
+  ninguem; "nada entra nem sai por este canal ate reconectar" move. Se for
+  reescrever, mantenha isso.
+- **Verificado (2026-08-11)** nos tres estados: banco vazio -> 5 "A configurar" e
+  **zero** faixas; saudavel -> 2 conectados e **zero** faixas; quebrado -> pills
+  corretas e **6** faixas especificas.
+- **NUNCA expor token.** A consulta devolve so "ha credencial" e "vence em X".
+  Se alguem precisar depurar credencial, e por `mascarar()` no servidor, nunca
+  na tela.
+- **Sem botoes de "reconectar" / "testar conexao"**, que a auditoria tambem
+  pedia: qualquer botao aqui dispara acao privilegiada, e sem autenticacao (🔴) o
+  segredo iria no HTML. Entram quando o login existir.
 
 ### `drizzle-kit migrate` em banco virgem — RESOLVIDO (era o enum `cancelado`)
 - **Arquivo(s):** `src/lib/db/migrations/0000_far_loners.sql`,
