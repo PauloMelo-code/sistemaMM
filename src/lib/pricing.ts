@@ -207,6 +207,53 @@ export function lanceMaximo({
 }
 
 /**
+ * MARGEM DE UM ANUNCIO QUE JA TEM PRECO (RN-103) — a leitura inversa da RN-100.
+ *
+ * `calcularPreco` responde "por quanto anunciar para ter margem X". Esta
+ * responde o contrario: "dado que esta anunciado por Y, que margem sobra?".
+ *
+ *   preco * (1 - taxa - COMISSAO - margem) = base
+ *   =>  margem = 1 - taxa - COMISSAO - base/preco
+ *
+ * ⚠️ MARGEM E DADO DERIVADO DE CUSTO. Quem nao pode ver custo nao pode ver
+ * margem (RN-107) — o numero revela o custo por aritmetica simples. O filtro e
+ * de SERVIDOR: ver `podeVerCusto` em `src/lib/auth/rbac.ts`.
+ *
+ * ⚠️ A `base` que voce passar decide se o numero e honesto. Hoje o sistema NAO
+ * guarda frete por item (lacuna registrada em known-issues), entao a tela de
+ * Anuncios passa so o custo — e o resultado **superestima** a margem, em
+ * equipamento pesado por varios pontos. Nao "arredonde para bonito": mostre o
+ * numero com a ressalva, que e o que permite alguem cobrar o frete que falta.
+ *
+ * Devolve `null` quando a conta nao existe (preco zero ou invalido) — a UI
+ * mostra "—" em vez de um percentual inventado.
+ */
+export function margemDoAnuncio({
+  preco,
+  base,
+  canal,
+}: {
+  /** Preco anunciado. */
+  preco: number;
+  /** Custo + fretes que a MM banca. Ver a ressalva acima. */
+  base: number;
+  canal: Canal;
+}): number | null {
+  if (!valorValido(preco) || !valorValido(base)) return null;
+  // Preco zero nao e "margem zero": e divisao por zero. A tela mostra "—".
+  if (preco <= 0) return null;
+
+  const taxa = TAXA_CANAL[canal];
+  if (!Number.isFinite(taxa)) return null; // canal fora da tabela, vindo sem tipo
+
+  const margem = 1 - taxa - COMISSAO - base / preco;
+  return Number.isFinite(margem) ? margem : null;
+}
+
+/** Piso da RN-103: margem >= 30% e verde; abaixo, ambar. */
+export const MARGEM_SAUDAVEL = 0.3;
+
+/**
  * O dinheiro REALIZADO de uma venda que ja aconteceu.
  *
  * Nao confundir com `calcularPreco`: aquela responde "por quanto devo anunciar";

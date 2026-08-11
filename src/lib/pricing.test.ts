@@ -22,6 +22,8 @@ import {
   calcularPreco,
   lanceMaximo,
   resultadoDaVenda,
+  margemDoAnuncio,
+  MARGEM_SAUDAVEL,
   formatarBRL,
   TAXA_CANAL,
   COMISSAO,
@@ -344,4 +346,62 @@ test("entrada invalida devolve null em vez de NaN na coluna de dinheiro", () => 
     resultadoDaVenda({ valor: 100, canal: "shopee" as Canal, freteSaida: 0 }),
     null,
   );
+});
+
+// -- h) margem de anuncio ja precificado (RN-103) --------------------------
+
+test("RN-103: a margem do anuncio e a INVERSA exata do calculo de preco", () => {
+  // Anunciar por P para ter margem M e, na volta, ler margem M no preco P.
+  // Se as duas contas divergirem, o painel discorda de si mesmo.
+  for (const canal of canais) {
+    for (const margem of [0.1, 0.25, 0.3, 0.45]) {
+      const r = calcularPreco({ custo: 3300, freteEntrada: 180, freteSaida: 0, margem, canal });
+      assert.ok(r.disponivel);
+      const lida = margemDoAnuncio({ preco: r.preco, base: 3300 + 180, canal });
+      assert.ok(lida !== null);
+      assert.ok(Math.abs(lida - margem) < TOL, `${canal}/${margem}: leu ${lida}`);
+    }
+  }
+});
+
+test("a margem DESCONTA taxa do canal e comissao — e o que a nota do rodape promete", () => {
+  // Mesmo preco e mesmo custo em canais diferentes dao margens diferentes,
+  // porque a taxa e diferente. Se fossem iguais, a coluna seria margem BRUTA.
+  const ml = margemDoAnuncio({ preco: 5000, base: 3000, canal: "mercado_livre" })!;
+  const olx = margemDoAnuncio({ preco: 5000, base: 3000, canal: "olx" })!;
+  const direta = margemDoAnuncio({ preco: 5000, base: 3000, canal: "whatsapp" })!;
+  assert.ok(ml < olx && olx < direta, "quanto maior a taxa, menor a margem liquida");
+  assert.ok(Math.abs(olx - ml - (TAXA_CANAL.mercado_livre - TAXA_CANAL.olx)) < TOL);
+});
+
+test("margem NEGATIVA aparece — anuncio no prejuizo nao pode passar por saudavel", () => {
+  const m = margemDoAnuncio({ preco: 1000, base: 1200, canal: "mercado_livre" })!;
+  assert.ok(m < 0);
+  assert.ok(m < MARGEM_SAUDAVEL, "prejuizo jamais pode cair no verde");
+});
+
+test("base MAIOR sempre derruba a margem — e por isso ignorar frete a infla", () => {
+  // O motivo de a tela avisar que o numero ignora frete: sem ele, a base fica
+  // menor do que a real e a margem sai otimista.
+  const semFrete = margemDoAnuncio({ preco: 7500, base: 3300, canal: "mercado_livre" })!;
+  const comFrete = margemDoAnuncio({ preco: 7500, base: 3300 + 620, canal: "mercado_livre" })!;
+  assert.ok(semFrete > comFrete);
+  assert.ok(Math.abs(semFrete - comFrete - 620 / 7500) < TOL);
+});
+
+test("preco zero ou invalido devolve null, nao Infinity nem NaN", () => {
+  assert.equal(margemDoAnuncio({ preco: 0, base: 100, canal: "olx" }), null);
+  assert.equal(margemDoAnuncio({ preco: -1, base: 100, canal: "olx" }), null);
+  assert.equal(margemDoAnuncio({ preco: Number.NaN, base: 100, canal: "olx" }), null);
+  assert.equal(margemDoAnuncio({ preco: 100, base: Number.NaN, canal: "olx" }), null);
+  assert.equal(margemDoAnuncio({ preco: 100, base: 10, canal: "shopee" as Canal }), null);
+});
+
+test("base zero (item de graca) da margem valida, nao null", () => {
+  const m = margemDoAnuncio({ preco: 100, base: 0, canal: "whatsapp" })!;
+  assert.ok(Math.abs(m - (1 - COMISSAO)) < TOL);
+});
+
+test("o piso da RN-103 e 30%", () => {
+  assert.equal(MARGEM_SAUDAVEL, 0.3);
 });
