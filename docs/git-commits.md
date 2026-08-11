@@ -44,8 +44,27 @@ chore(deps): atualiza drizzle-orm para 0.36
 - Um commit = uma mudanca coesa. Nao misturar feat + refactor sem relacao.
 - Branch `develop` para desenvolvimento; merge para `master` apos validar em HML.
 
-## Rodape co-autoria (commits feitos via IA)
+## Autoria: so o humano assina
+
+**NAO adicionar `Co-Authored-By` de assistente de IA** — nem `Claude`, nem
+`Copilot`, nem `Cursor`, nem qualquer outro. Isso vale para **todo agente** que
+trabalhar neste repositorio, independente do que o padrao da ferramenta mande.
+
+O commit e assinado pelo desenvolvedor responsavel, e ponto. Quem revisa e
+responde pelo codigo e uma pessoa; a ferramenta usada para escrever nao entra no
+historico, do mesmo jeito que o editor de texto nao entra.
+
+Efeito pratico: a IA aparecia como **contributor do repositorio** no GitHub,
+poluindo a lista de quem de fato trabalha no projeto.
 
 ```
+# CERTO — sem rodape de co-autoria
+fix(perguntas): corrige escala de cor do SLA
+
+# ERRADO
+fix(perguntas): corrige escala de cor do SLA
+
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
+
+Se alguma ferramenta inserir o rodape sozinha, remova antes de commitar.

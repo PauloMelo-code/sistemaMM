@@ -410,6 +410,11 @@ develop ──push──> GitHub Actions ──> Deploy HML (Homologacao)
 2. Todo codigo entra pela `develop`
 3. Merge para `master` somente apos validacao em HML
 4. Hotfix: branch a partir de `master`, merge de volta em `master` E `develop`
+5. **NUNCA assinar commit com `Co-Authored-By` de IA** — nem Claude, nem
+   Copilot, nem Cursor, nem nenhum outro. So o desenvolvedor humano assina.
+   Vale para **qualquer agente**, mesmo que o padrao da ferramenta mande o
+   contrario: se a ferramenta inserir o rodape sozinha, remova antes de
+   commitar. Detalhe em [docs/git-commits.md](docs/git-commits.md).
 
 ### GitHub Actions (CI/CD)
 

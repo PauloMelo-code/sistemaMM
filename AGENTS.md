@@ -58,6 +58,10 @@ que vou alterar / o que muda em cada). 3. **Aguardar** confirmacao explicita.
 10. NUNCA expor dados sem verificar permissao do usuario (RBAC)
 11. NUNCA ignorar tratamento de erro em operacoes de banco
 12. NUNCA commitar secrets, .env ou credenciais
+12.1. NUNCA assinar commit com `Co-Authored-By` de IA (Claude, Copilot, Cursor
+   ou qualquer outro) — so o desenvolvedor humano assina. Vale para **todo
+   agente**, mesmo que o padrao da ferramenta mande o contrario; se ela inserir
+   o rodape sozinha, remova antes de commitar. Ver `docs/git-commits.md`.
 
 ### Estrutura
 13. NUNCA criar arquivos na raiz — usar pastas corretas (`src/`, `tests/`, `docs/`, `config/`, `scripts/`)
