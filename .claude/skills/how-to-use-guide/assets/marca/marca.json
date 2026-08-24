@@ -1,0 +1,10 @@
+{
+  "key": "mm-solucoes",
+  "label": "MM Solucoes",
+  "tokens": {
+    "marca": "#E8A33D",
+    "marca-texto": "#8A5B12"
+  },
+  "logo": { "tipo": "svg" },
+  "avisos": []
+}
