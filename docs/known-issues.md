@@ -156,15 +156,15 @@ tentou refuta-lo lendo o codigo. O que sobreviveu:
   id vaza no `src` da imagem** e o DELETE vira remotamente explorave. Nenhuma UI
   consome essas rotas — a correcao mais preguicosa e apaga-las ate a tela Site
   existir.
-- **🔴 ABERTO — `/api/integracoes/oauth/.../iniciar` so tem `?t=SEGREDO`.** O
-  comentario do arquivo justifica com "nao existe autenticacao no sistema", o
-  que e **falso desde 2026-08-11**. Quem ler o segredo num log de acesso
-  autoriza a PROPRIA conta do ML e substitui a credencial da MM (so ha uma ativa
-  por canal). Agora que ha login, trocar por `lerSessao()` + `temPermissao()`.
-- **🔴 ABERTO — `/integracoes` nao confere papel.** E a unica pagina do painel
-  que nao chama `temPermissao`, e a matriz nega `integracoes` ao operador. Nao
-  vaza segredo, mas fura a matriz — que e o mesmo mecanismo que carrega a
-  RN-107.
+- **✅ RESOLVIDO em 2026-10-29 — `/api/integracoes/oauth/.../iniciar` so tinha
+  `?t=SEGREDO`.** Quem lesse o segredo num log de acesso autorizaria a PROPRIA
+  conta do ML e substituiria a credencial da MM. Agora a rota exige
+  `lerSessao()` + `temPermissao(papel, "integracoes", "atualizar")`, ou seja, so
+  administrador. Ela e chamada pelo botao "Conectar Mercado Livre" da tela
+  Integracoes.
+- **✅ RESOLVIDO em 2026-10-29 — `/integracoes` nao conferia papel.** A pagina
+  agora chama `temPermissao(papel, "integracoes", "ler")`. O operador ve "esta
+  tela nao faz parte do seu acesso", como em Lotes.
 - **🔴 ABERTO — sem healthcheck e sem rollback.** O pipeline termina no `pm2` e
   nada confere se a app responde: app que sobe e morre em 2s da deploy verde. As
   migracoes sao so de ida, e o `pg_dump` **nunca foi restaurado nem uma vez** —
@@ -427,6 +427,32 @@ venda.
   painel so tem mock.
 - **Acao sugerida:** Anderson cria/autoriza o app na conta de vendedor da MM.
   Em desenvolvimento, webhook exige tunel (cloudflared/ngrok) — decidir qual.
+  Ao criar o app: **PKCE ativo**, e ativar as permissoes funcionais "Vendas e
+  envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
+  elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
+
+### 🟢 Spec "Sistema de Anuncios" pede Prisma; o projeto usa Drizzle (intencional)
+- **Modulo:** Integracoes (Mercado Livre)
+- **Situacao (2026-10-29):** a especificacao externa do sistema de anuncios do
+  ML pede Next.js + **Prisma** e um modelo proprio (`TokenMl`, `Produto`,
+  `Anuncio`...). Este repo proibe Prisma (regra absoluta, bloqueada por hook).
+  Decisao do Paulo: a Fase 0 da spec foi feita **aqui, com Drizzle**,
+  reaproveitando o que ja existia. `TokenMl` = `integracoes_credenciais`, e o
+  OAuth/PKCE/refresh e o `client.ts` ja cobriam a fase. O que entrou de novo foi
+  o `/users/me` na tela Integracoes e o `docs/ml-api-notas.md`.
+- **Divergencias da spec que a doc oficial confirmou:**
+  - SKU vai so no atributo `SELLER_SKU`, nao tambem no `seller_custom_field`.
+  - `family_name` × `title` se decide pela tag `user_product_seller`, nao por
+    tentativa e erro.
+  - O multiget `/items?ids=` foi descontinuado; o substituto e `/items/bulk`.
+- **Renovacao do token:** acontece quando alguma chamada pede o token (margem de
+  20%, cerca de 72 min antes de vencer). Abrir a tela Integracoes dispara uma
+  renovacao, e a reconciliacao tambem: o `scripts/agendador.mjs` a chama a cada
+  15 min, e a primeira coisa que ela faz e chamar o ML. Com o servico do
+  agendador no ar, o token se renova sozinho. A dependencia e implicita: se a
+  reconciliacao sair do agendador, a renovacao periodica sai junto.
+- **Proximas fases da spec:** cada modelo Prisma vira tabela Drizzle via
+  `/criar-tabela`.
 
 ### Emissao de NF-e — nao definida
 - **Modulo:** Pedidos, Expedicao
@@ -634,8 +660,9 @@ venda.
 ### OAuth do ML: pronto e verificado, mas so destrava com o app registrado
 - **Arquivo(s):** `src/lib/integracoes/mercado-livre/oauth.ts`,
   `src/app/api/integracoes/oauth/mercado-livre/{iniciar,callback}/route.ts`
-- **Como conectar** (uma vez, pelo navegador):
-  `https://SEU-DOMINIO/api/integracoes/oauth/mercado-livre/iniciar?t=$WEBHOOK_SECRET`
+- **Como conectar:** como administrador, botao "Conectar Mercado Livre" no card
+  da tela Integracoes. Ate 2026-10-29 era a URL `/iniciar?t=$WEBHOOK_SECRET`
+  digitada a mao.
 - **Verificado em 2026-08-10** contra um ML falso que validava PKCE de verdade
   (removido depois): `/iniciar` sem segredo da 404; a URL de autorizacao sai com
   `response_type`, `state`, `code_challenge` e `S256`; **callback com `state`
@@ -649,10 +676,10 @@ venda.
   explicar sozinha.
 - **⚠️ `ML_REDIRECT_URI` tem que ser identico ao cadastrado**, sem parametro
   grudado: o ML compara a URL inteira. O que se quer levar vai no `state`.
-- **O segredo na rota `/iniciar` e provisorio.** E porteiro de emergencia porque
-  nao ha login (🔴): sem ele, qualquer um dispara o fluxo, conecta a PROPRIA
-  conta do ML e substitui a credencial da MM (so ha uma ativa por canal). Quando
-  a autenticacao existir, isto vira "so administrador" e o `?t=` sai.
+- **A rota `/iniciar` e so de administrador** desde 2026-10-29. O segredo `?t=`
+  saiu, porque era o porteiro provisorio do tempo sem login. Sem porteiro,
+  qualquer um conectaria a PROPRIA conta do ML e substituiria a da MM (so ha uma
+  credencial ativa por canal).
 - **O estado do fluxo vive em cookie cifrado**, nao em tabela — `sameSite=lax`
   de proposito: com `strict` o navegador nao manda o cookie na volta do ML
   (navegacao vinda de outro site) e o fluxo morre sem explicacao.
@@ -1019,6 +1046,38 @@ venda.
 
 ---
 
+### ⚠️ 2026-08-11: o painel DIVERGE do handoff de proposito — casca visual nova
+
+- **Arquivo(s):** `src/app/globals.css`, `src/app/(painel)/_components/sidebar.tsx`,
+  `docs/design-system.md`
+- **Decisao do Paulo**, a partir de um Figma de dashboard SaaS que ele trouxe
+  como referencia de acabamento. **Nao foi um reskin**: a proposta de trocar a
+  paleta pelo roxo `#605BFF` do template foi recusada por ele ("manter nossas
+  cores"), e recusada tambem por dois motivos concretos — o roxo apaga a marca
+  (navy + laranja vem do logo da MM) e os circulos pastel do template matam a
+  semantica do ambar, que aqui significa SLA estourando, item sem anuncio e
+  giro lento.
+- **O que mudou:** `--color-page` `#EDEFF2` → `#F7F8FA`; `--radius-card`
+  `8px` → `14px`; **novos** `--shadow-card`, `--shadow-hover`,
+  `--duracao-rapida`, `--ease-padrao`; sidebar `236px` → `200px` com icone por
+  item (SVG inline, sem dependencia nova).
+- **O que NAO mudou, e nao pode mudar sem nova decisao:** navy `#16324F`,
+  laranja `#D97941`, toda a cor de status, Archivo + Jost, o conteudo de cada
+  tela e as larguras de coluna do handoff.
+- **⚠️ O ROTULO DA SIDEBAR FICOU, contra o Figma.** O template usa rail so de
+  icones. Aqui seriam 12 telas com icones pouco distintos entre si — Estoque,
+  Lotes e Pedidos viram todos uma caixa — e o escopo contratado inclui **cinco
+  semanas treinando um operador**. O icone entrou como ancora visual, nao como
+  substituto do nome. Se alguem propuser o rail puro, esta e a razao de nao.
+- **Consequencia para quem portar tela nova:** as capturas em
+  `design_handoff_sistema_mm/screenshots/` **nao batem mais** em fundo, raio,
+  sombra e sidebar. Continuam valendo para conteudo, colunas e cor de status.
+- **Pendente:** Fase 2 (sombra aplicada nos cards, hover de linha na tabela,
+  ordenacao por coluna, e o token de foco substituindo as 36 copias da string
+  `focus-visible:outline-*`) ainda nao foi feita.
+
+---
+
 ## 🔵 Corrigir ao portar (auditoria de usabilidade — 2026-08-10)
 
 Achados da auditoria das 13 telas. **Nao sao para corrigir no prototipo**
@@ -1072,6 +1131,21 @@ Os itens que exigem decisao do cliente subiram para 🔴/🟡 acima.
   e ordenar os cards por urgencia de despacho. **Depende** da pendencia
   "`pedidos` nao guarda prazo de despacho" (🟡 acima) — sem a coluna nao ha o que
   contar.
+
+### 🔴 Calculadora — o "lance maximo" so devolve o custo digitado (2026-10-29)
+- **Arquivo(s):** `src/app/(painel)/calculadora/_components/calculadora.tsx`
+  (fora do git ate ser corrigida; item de menu desligado na sidebar)
+- **Situacao:** o lance e calculado com o preco que acabou de sair de
+  `calcularPreco(custo, ...)`. Pela identidade de `pricing.ts`, a volta da no
+  proprio custo: os tres cards "pague no maximo" sempre repetem o custo de
+  entrada.
+- **Por que importa:** e o numero que o Anderson usaria com o martelo na mao.
+  Um valor que parece calculado e nao e, numa zona de cuidado (lance no leilao).
+- **Decisao pendente:** a leitura inversa precisa de uma entrada propria, o
+  preco que o mercado aceita (ex.: a mediana do levantamento). Falta definir de
+  onde ele vem: digitado na tela, ou lido do item ou do levantamento.
+- **Ja corrigido na mesma tela:** "49.90" virava 4990, porque o codigo apagava
+  todo ponto. Agora o ponto e decimal, a menos que separe grupos de 3 digitos.
 
 ### Calculadora — o resultado nao vai a lugar nenhum
 - **Situacao:** calcula os tres precos e termina ali. Nao ha como aplicar o valor
