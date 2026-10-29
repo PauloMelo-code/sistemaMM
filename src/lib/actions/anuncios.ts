@@ -10,7 +10,7 @@
  * navegador e aparece no DevTools; `Omit` no TypeScript some em tempo de
  * execucao. O filtro e aqui, no servidor.
  */
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { anuncios } from "@/lib/db/schema/anuncios";
@@ -49,9 +49,42 @@ export interface ListaAnuncios {
   margemIgnoraFrete: boolean;
 }
 
+/**
+ * Colunas ordenaveis — LISTA FECHADA (mesma defesa de /estoque: a chave da URL
+ * vira referencia de coluna do Drizzle, nunca pedaco de SQL).
+ *
+ * ⚠️ `margem` NAO esta aqui, e a ausencia e deliberada. A margem nao e coluna:
+ * sai de `pricing.ts` DEPOIS da consulta, por linha. Ordenar por ela exigiria
+ * ou reescrever a formula em SQL — segunda copia da regra de dinheiro, que a
+ * RN-100 proibe — ou ordenar em memoria, o que quebra no dia da paginacao.
+ * Fica de fora ate a decisao de onde a margem passa a ser calculada.
+ */
+export const ORDENS_ANUNCIOS = ["produto", "canal", "preco", "visitas", "status"] as const;
+export type OrdemAnuncios = (typeof ORDENS_ANUNCIOS)[number];
+
 export interface FiltroAnuncios {
   canal?: Canal;
   status?: StatusAnuncio;
+  ordem?: OrdemAnuncios;
+  direcao?: "asc" | "desc";
+}
+
+function ordenacaoAnuncios(filtro: FiltroAnuncios) {
+  const dir = filtro.direcao === "desc" ? desc : asc;
+  switch (filtro.ordem) {
+    case "produto":
+      return [dir(itens.nome)];
+    case "canal":
+      return [dir(anuncios.canal), asc(itens.nome)];
+    case "preco":
+      return [dir(anuncios.preco), asc(itens.nome)];
+    case "status":
+      return [dir(anuncios.status), asc(itens.nome)];
+    case "visitas":
+      return [dir(anuncios.visitas), asc(itens.nome)];
+    default:
+      return [desc(anuncios.visitas), asc(itens.nome)];
+  }
 }
 
 export async function listarAnuncios(
@@ -80,7 +113,15 @@ export async function listarAnuncios(
     .from(anuncios)
     .innerJoin(itens, eq(itens.id, anuncios.item_id))
     .where(and(...condicoes))
-    .orderBy(desc(anuncios.visitas));
+    /**
+     * Padrao continua VISITAS desc — escolha registrada no known-issues: numa
+     * tela sem ordenacao clicavel, o mais util era o que tem mais gente
+     * olhando. Agora que a ordenacao existe, isso vira so o estado inicial.
+     *
+     * `produto` desempata: sem ele, anuncios com o mesmo numero de visitas (ou
+     * o mesmo status) trocam de lugar entre recargas.
+     */
+    .orderBy(...ordenacaoAnuncios(filtro));
 
   return {
     margemOculta: !mostrarMargem,

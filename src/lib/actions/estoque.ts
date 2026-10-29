@@ -10,7 +10,7 @@
  * Os dois campos nem entram na consulta quando o papel nao pode ve-los: dado que
  * nao e lido nao vaza por descuido do proximo que mexer aqui.
  */
-import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { anuncios } from "@/lib/db/schema/anuncios";
@@ -65,9 +65,76 @@ export interface EstadoEstoque {
   custoOculto: boolean;
 }
 
+/**
+ * Colunas que a tela Estoque aceita ordenar — LISTA FECHADA.
+ *
+ * ⚠️ Esta e a defesa contra injecao. A chave chega da URL como texto livre;
+ * aqui ela vira uma REFERENCIA DE COLUNA do Drizzle, nunca um pedaco de SQL.
+ * Chave desconhecida nem chega: `lerOrdem` cai no padrao.
+ *
+ * `custo` e `precoAlvo` estao no mapa mas sao barrados por permissao logo
+ * abaixo — quem nao ve o valor tambem nao ordena por ele, senao a posicao das
+ * linhas entrega a grandeza que a RN-107 esconde.
+ */
+export const ORDENS_ESTOQUE = [
+  "nome",
+  "lote",
+  "segmento",
+  "custo",
+  "precoAlvo",
+  "situacao",
+] as const;
+export type OrdemEstoque = (typeof ORDENS_ESTOQUE)[number];
+
 export interface FiltroEstoque {
   segmento?: string;
   situacao?: SituacaoItem;
+  ordem?: OrdemEstoque;
+  direcao?: "asc" | "desc";
+}
+
+/**
+ * Traduz a chave da URL numa clausula ORDER BY.
+ *
+ * O `nome` entra como DESEMPATE em toda ordenacao que nao seja por ele: sem
+ * isso, ordenar por `segmento` (ou por qualquer coluna com valores repetidos)
+ * deixa a ordem dentro do grupo a cargo do Postgres, que pode devolver linhas
+ * em posicoes diferentes a cada carga. Lista que "embaralha sozinha" ao recarregar
+ * e um dos jeitos mais rapidos de fazer o operador desconfiar do sistema.
+ */
+function ordenacao(filtro: FiltroEstoque, mostrarCusto: boolean) {
+  const dir = filtro.direcao === "desc" ? desc : asc;
+
+  // Sem permissao de custo, ordenar por custo/preco alvo entregaria a grandeza
+  // pela POSICAO da linha. Cai para o padrao — nao e erro, e sigilo (RN-107).
+  const pedida =
+    !mostrarCusto && (filtro.ordem === "custo" || filtro.ordem === "precoAlvo")
+      ? undefined
+      : filtro.ordem;
+
+  switch (pedida) {
+    case "lote":
+      return [dir(lotes.nome), asc(itens.nome)];
+    case "segmento":
+      return [dir(itens.segmento), asc(itens.nome)];
+    case "custo":
+      return [dir(itens.custo), asc(itens.nome)];
+    case "precoAlvo":
+      // `NULLS LAST` nos dois sentidos: item sem preco alvo e o que se quer
+      // ACHAR, nao o que se quer ver empilhado no topo por acidente de
+      // ordenacao. Em `desc` o Postgres ja poe NULL primeiro por padrao.
+      return [
+        filtro.direcao === "desc"
+          ? sql`${itens.preco_alvo} DESC NULLS LAST`
+          : sql`${itens.preco_alvo} ASC NULLS LAST`,
+        asc(itens.nome),
+      ];
+    case "situacao":
+      return [dir(itens.situacao), asc(itens.nome)];
+    case "nome":
+    default:
+      return [dir(itens.nome)];
+  }
 }
 
 export async function lerEstoque(
@@ -147,7 +214,7 @@ export async function lerEstoque(
     .from(itens)
     .innerJoin(lotes, eq(lotes.id, itens.lote_id))
     .where(and(...condicoes))
-    .orderBy(asc(itens.nome));
+    .orderBy(...ordenacao(filtro, mostrarCusto));
 
   return {
     custoOculto: !mostrarCusto,

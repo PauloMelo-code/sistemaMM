@@ -17,7 +17,8 @@
  */
 import { redirect } from "next/navigation";
 
-import { listarAnuncios, type StatusAnuncio } from "@/lib/actions/anuncios";
+import { listarAnuncios, ORDENS_ANUNCIOS, type StatusAnuncio } from "@/lib/actions/anuncios";
+import { CabecalhoOrdenavel, lerOrdem } from "@/components/ui/cabecalho-ordenavel";
 import { lerSessao } from "@/lib/auth/sessao";
 import { formatarBRL, MARGEM_SAUDAVEL, type Canal } from "@/lib/pricing";
 
@@ -43,7 +44,7 @@ const STATUS_VALIDOS: StatusAnuncio[] = ["no_ar", "negociando", "pausado"];
 export default async function AnunciosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ canal?: string; status?: string }>;
+  searchParams: Promise<{ canal?: string; status?: string; ordem?: string; dir?: string }>;
 }) {
   // O layout de `(painel)` ja barra quem nao tem sessao; aqui a sessao e lida de
   // novo porque o PAPEL decide o que a consulta traz. Sem isso, a RN-107 nao
@@ -57,10 +58,17 @@ export default async function AnunciosPage({
   const canal = CANAIS_VALIDOS.find((c) => c === params.canal);
   const status = STATUS_VALIDOS.find((s) => s === params.status);
 
+  const { ordem, direcao } = lerOrdem(ORDENS_ANUNCIOS, params.ordem, params.dir);
+
   const { anuncios, margemOculta, margemIgnoraFrete } = await listarAnuncios(sessao.papel, {
     canal,
     status,
+    ordem,
+    direcao,
   });
+
+  /** Filtros de canal/status preservados ao trocar a ordem. */
+  const filtrosAtuais = { canal, status };
 
   const colunas = margemOculta ? 5 : 6;
 
@@ -78,18 +86,58 @@ export default async function AnunciosPage({
 
       {/* `overflow-x-auto` no CONTEINER, com `min-w` na tabela: quem rola e a
           tabela, nunca o corpo da pagina. Era a correcao pedida pela auditoria. */}
-      <div className="overflow-x-auto rounded-card border border-border bg-card">
+      {/* `relative` para que qualquer filho `position:absolute` (sr-only,
+          tooltip) seja recortado POR ESTE contentor. Sem ele o elemento
+          absoluto escapa da caixa que rola e faz a pagina inteira rolar de
+          lado — foi o que aconteceu em /estoque. Ver o comentario de la. */}
+      <div className="relative overflow-x-auto rounded-card border border-border bg-card shadow-(--shadow-card)">
         <table className="w-full min-w-[680px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-table-head text-left text-[11px] uppercase tracking-[.12em] text-ink-2">
-              <th scope="col" className="px-4 py-2.5 font-normal">Produto</th>
-              <th scope="col" className="px-2 py-2.5 font-normal">Canal</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-normal">Preço</th>
+              {(
+                [
+                  ["Produto", "produto", false, "px-4"],
+                  ["Canal", "canal", false, ""],
+                  ["Preço", "preco", true, ""],
+                ] as const
+              ).map(([rotulo, chave, direita, extra]) => (
+                <CabecalhoOrdenavel
+                  key={chave}
+                  rotulo={rotulo}
+                  chave={chave}
+                  base="/anuncios"
+                  ordemAtual={ordem}
+                  direcaoAtual={direcao}
+                  parametros={filtrosAtuais}
+                  direita={direita}
+                  className={extra}
+                />
+              ))}
+              {/* MARGEM nao ordena, e nao e esquecimento: ela sai de
+                  `pricing.ts` depois da consulta, por linha. Ordenar exigiria
+                  reescrever a formula em SQL — segunda copia da regra de
+                  dinheiro, proibida pela RN-100. Ver ORDENS_ANUNCIOS. */}
               {!margemOculta && (
                 <th scope="col" className="px-2 py-2.5 text-right font-normal">Margem</th>
               )}
-              <th scope="col" className="px-2 py-2.5 text-right font-normal">Visitas</th>
-              <th scope="col" className="px-4 py-2.5 font-normal">Status</th>
+              <CabecalhoOrdenavel
+                rotulo="Visitas"
+                chave="visitas"
+                base="/anuncios"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                direita
+              />
+              <CabecalhoOrdenavel
+                rotulo="Status"
+                chave="status"
+                base="/anuncios"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                className="px-4"
+              />
             </tr>
           </thead>
           <tbody>
@@ -103,8 +151,19 @@ export default async function AnunciosPage({
               anuncios.map((a) => {
                 const pill = PILL_STATUS[a.status];
                 return (
-                  <tr key={a.id} className="border-t border-divider">
-                    <th scope="row" className="max-w-0 truncate px-4 py-2.5 text-left font-normal">
+                  <tr
+                    key={a.id}
+                    className="border-t border-divider transition-colors duration-(--duracao-rapida) ease-(--ease-padrao) hover:bg-row-selected"
+                  >
+                    {/* `w-full max-w-0` andam em par: `max-w-0` deixa encolher,
+                        `w-full` faz absorver a sobra. So com `max-w-0` a coluna
+                        do produto — que o handoff define como `minmax(0,1fr)` —
+                        ficava a mais estreita da tabela e o nome saia cortado
+                        com folga vazia na coluna ao lado. Igual em /estoque. */}
+                    <th
+                      scope="row"
+                      className="w-full max-w-0 truncate px-4 py-2.5 text-left font-normal"
+                    >
                       {a.produto}
                     </th>
                     <td className="px-2 py-2.5 text-ink-2">{ROTULO_CANAL[a.canal]}</td>

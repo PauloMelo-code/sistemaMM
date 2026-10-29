@@ -19,7 +19,8 @@
  */
 import { redirect } from "next/navigation";
 
-import { lerEstoque, type SituacaoItem } from "@/lib/actions/estoque";
+import { lerEstoque, ORDENS_ESTOQUE, type SituacaoItem } from "@/lib/actions/estoque";
+import { CabecalhoOrdenavel, lerOrdem } from "@/components/ui/cabecalho-ordenavel";
 import { listarLotesParaSelecao } from "@/lib/actions/lotes";
 import { temPermissao } from "@/lib/auth/rbac";
 import { BotaoNovoItem, AcoesItem } from "./_components/formulario-item";
@@ -49,7 +50,12 @@ const SITUACOES: SituacaoItem[] = ["anunciado", "sem_anuncio", "reservado", "pau
 export default async function EstoquePage({
   searchParams,
 }: {
-  searchParams: Promise<{ segmento?: string; situacao?: string }>;
+  searchParams: Promise<{
+    segmento?: string;
+    situacao?: string;
+    ordem?: string;
+    dir?: string;
+  }>;
 }) {
   const sessao = await lerSessao();
   if (!sessao) redirect("/login");
@@ -57,11 +63,18 @@ export default async function EstoquePage({
   const params = await searchParams;
   const situacao = SITUACOES.find((s) => s === params.situacao);
   const segmento = params.segmento?.trim() || undefined;
+  // Chave desconhecida cai no padrao — nunca chega a consulta.
+  const { ordem, direcao } = lerOrdem(ORDENS_ESTOQUE, params.ordem, params.dir);
 
   const { itens, kpis, segmentos, custoOculto } = await lerEstoque(sessao.papel, {
     segmento,
     situacao,
+    ordem,
+    direcao,
   });
+
+  /** Filtros a preservar quando a ordem muda — senao ordenar zera o recorte. */
+  const filtrosAtuais = { segmento, situacao };
 
   /**
    * Cadastro exige `itens` E `itens_custo` — ver o cabecalho de
@@ -93,21 +106,79 @@ export default async function EstoquePage({
 
       <FiltrosEstoque kpis={kpis} segmentos={segmentos} segmento={segmento} situacao={situacao} />
 
-      <div className="overflow-x-auto rounded-card border border-border bg-card">
+      {/* `relative` NAO e decoracao: sem ele o `sr-only` do cabecalho de Acoes
+          (que e `position:absolute`) escapa deste contentor. Um elemento
+          absoluto e recortado pelo bloco CONTENTOR dele, e um ancestral
+          `static` com `overflow` nao serve de bloco contentor — entao o rotulo
+          invisivel ia parar em x=760 e fazia a PAGINA INTEIRA rolar de lado
+          (394px a 375px de viewport). Medido: `scrollWidth` 761 -> 367. */}
+      <div className="relative overflow-x-auto rounded-card border border-border bg-card shadow-(--shadow-card)">
         <table className="w-full min-w-[760px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-table-head text-left text-[11px] uppercase tracking-[.12em] text-ink-2">
-              <th scope="col" className="px-4 py-2.5 font-normal">Item</th>
-              <th scope="col" className="px-2 py-2.5 font-normal">Lote</th>
-              <th scope="col" className="px-2 py-2.5 font-normal">Segmento</th>
+              <CabecalhoOrdenavel
+                rotulo="Item"
+                chave="nome"
+                base="/estoque"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                className="px-4"
+              />
+              <CabecalhoOrdenavel
+                rotulo="Lote"
+                chave="lote"
+                base="/estoque"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+              />
+              <CabecalhoOrdenavel
+                rotulo="Segmento"
+                chave="segmento"
+                base="/estoque"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+              />
               {!custoOculto && (
                 <>
-                  <th scope="col" className="px-2 py-2.5 text-right font-normal">Custo</th>
-                  <th scope="col" className="px-2 py-2.5 text-right font-normal">Preço alvo</th>
+                  <CabecalhoOrdenavel
+                    rotulo="Custo"
+                    chave="custo"
+                    base="/estoque"
+                    ordemAtual={ordem}
+                    direcaoAtual={direcao}
+                    parametros={filtrosAtuais}
+                    direita
+                  />
+                  {/* `whitespace-nowrap`: com a coluna Item absorvendo a sobra,
+                      as demais encolhem ate o conteudo — e este e o unico
+                      cabecalho de duas palavras, que virava "Preço / alvo". */}
+                  <CabecalhoOrdenavel
+                    rotulo="Preço alvo"
+                    chave="precoAlvo"
+                    base="/estoque"
+                    ordemAtual={ordem}
+                    direcaoAtual={direcao}
+                    parametros={filtrosAtuais}
+                    direita
+                    className="whitespace-nowrap"
+                  />
                 </>
               )}
+              {/* Canais NAO ordena: e um array agregado no banco, e "ordenar por
+                  lista de canais" nao tem significado que o Anderson use. */}
               <th scope="col" className="px-2 py-2.5 font-normal">Canais</th>
-              <th scope="col" className="px-4 py-2.5 font-normal">Situação</th>
+              <CabecalhoOrdenavel
+                rotulo="Situação"
+                chave="situacao"
+                base="/estoque"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                className="px-4"
+              />
               {podeEscrever ? (
                 // Cabecalho sem rotulo visivel, mas COM nome para leitor de
                 // tela: uma coluna anonima e um buraco na tabela para quem nao
@@ -128,9 +199,25 @@ export default async function EstoquePage({
             ) : (
               itens.map((item) => {
                 const pill = PILL_SITUACAO[item.situacao];
+                // Hover em `row-selected`, e nao `table-head`: o `--page`
+                // clareou para #F7F8FA na casca nova, que e EXATAMENTE o valor
+                // de `--table-head` — hover com ele seria invisivel sobre o
+                // card. `row-selected` (#F0F4F9) ja existe e significa "linha
+                // em destaque".
                 return (
-                  <tr key={item.id} className="border-t border-divider">
-                    <th scope="row" className="max-w-0 px-4 py-2.5 text-left font-normal">
+                  <tr
+                    key={item.id}
+                    className="border-t border-divider transition-colors duration-(--duracao-rapida) ease-(--ease-padrao) hover:bg-row-selected"
+                  >
+                    {/* `w-full max-w-0` andam SEMPRE juntos — sao as duas
+                        metades da mesma receita. `max-w-0` deixa a celula
+                        encolher (sem ele o nome longo alarga a tabela e nada
+                        trunca); `w-full` faz ela ABSORVER a sobra. Com so o
+                        `max-w-0`, em `table-layout:auto`, esta coluna ficava
+                        com 98px num viewport de 1440 e ate o SKU saia cortado
+                        ("MM-AUT-0..."), enquanto Acoes levava 241px. E esta e
+                        a coluna que o handoff define como `minmax(0,1fr)`. */}
+                    <th scope="row" className="w-full max-w-0 px-4 py-2.5 text-left font-normal">
                       <span className="block truncate">{item.nome}</span>
                       <span className="block truncate text-xs text-ink-2">{item.sku}</span>
                     </th>
@@ -152,7 +239,12 @@ export default async function EstoquePage({
                         : item.canais.map((c) => ROTULO_CANAL[c]).join(" · ")}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`rounded-pill px-2.5 py-[3px] text-[11px] ${pill.classe}`}>
+                      {/* `whitespace-nowrap` pelo mesmo motivo do cabecalho:
+                          "Sem anúncio" quebrava em duas linhas e a pill virava
+                          um retangulo de dois andares. */}
+                      <span
+                        className={`whitespace-nowrap rounded-pill px-2.5 py-[3px] text-[11px] ${pill.classe}`}
+                      >
                         {pill.rotulo}
                       </span>
                     </td>

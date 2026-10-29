@@ -9,7 +9,7 @@
  * pela data de digitacao joga venda de marco lancada em abril no mes errado, e
  * leva a comissao junto.
  */
-import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { itens } from "@/lib/db/schema/itens";
@@ -83,7 +83,49 @@ export function intervaloDoMes(mes: string): { inicio: Date; fim: Date } | null 
   };
 }
 
-export async function lerPedidos(papel: Papel, mesPedido?: string): Promise<EstadoPedidos> {
+/**
+ * Colunas ordenaveis — LISTA FECHADA (mesma defesa das outras telas).
+ *
+ * `valor` e `taxa` estao no mapa mas sao barrados por permissao: ordenar por
+ * dinheiro que a RN-107 esconde entregaria a grandeza pela POSICAO da linha.
+ */
+export const ORDENS_PEDIDOS = ["numero", "produto", "canal", "valor", "taxa", "status"] as const;
+export type OrdemPedidos = (typeof ORDENS_PEDIDOS)[number];
+
+function ordenacaoPedidos(
+  ordem: OrdemPedidos | undefined,
+  direcao: "asc" | "desc" | undefined,
+  mostrarDinheiro: boolean,
+) {
+  const dir = direcao === "desc" ? desc : asc;
+  const pedida = !mostrarDinheiro && (ordem === "valor" || ordem === "taxa") ? undefined : ordem;
+
+  switch (pedida) {
+    case "numero":
+      return [dir(pedidos.numero)];
+    case "produto":
+      return [dir(itens.nome), desc(pedidos.vendido_em)];
+    case "canal":
+      return [dir(pedidos.canal), desc(pedidos.vendido_em)];
+    case "valor":
+      return [dir(pedidos.valor), desc(pedidos.vendido_em)];
+    case "taxa":
+      return [dir(pedidos.taxa), desc(pedidos.vendido_em)];
+    case "status":
+      return [dir(pedidos.status), desc(pedidos.vendido_em)];
+    default:
+      // Padrao: venda mais recente primeiro. `numero` desempata duas vendas no
+      // mesmo instante — raro, mas o resultado nao pode variar entre recargas.
+      return [desc(pedidos.vendido_em), asc(pedidos.numero)];
+  }
+}
+
+export async function lerPedidos(
+  papel: Papel,
+  mesPedido?: string,
+  ordem?: OrdemPedidos,
+  direcao?: "asc" | "desc",
+): Promise<EstadoPedidos> {
   const mostrarDinheiro = podeVerCusto(papel);
   const mes = (mesPedido && intervaloDoMes(mesPedido) ? mesPedido : null) ?? mesCorrente();
   const { inicio, fim } = intervaloDoMes(mes)!;
@@ -111,7 +153,7 @@ export async function lerPedidos(papel: Papel, mesPedido?: string): Promise<Esta
     .from(pedidos)
     .innerJoin(itens, eq(itens.id, pedidos.item_id))
     .where(and(...condicoes))
-    .orderBy(desc(pedidos.vendido_em));
+    .orderBy(...ordenacaoPedidos(ordem, direcao, mostrarDinheiro));
 
   const lista: PedidoNaTela[] = linhas.map((l) => {
     const base: PedidoNaTela = {

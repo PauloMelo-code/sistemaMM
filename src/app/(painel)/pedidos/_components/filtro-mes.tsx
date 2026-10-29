@@ -27,9 +27,23 @@ function desloca(mes: string, meses: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Minusculo de proposito: serve o MEIO da frase ("Nenhum pedido em agosto de 2026"). */
 export function rotuloDoMes(mes: string): string {
   const [ano, m] = mes.split("-").map(Number);
   return `${NOMES[m - 1]} de ${ano}`;
+}
+
+/**
+ * O mesmo rotulo quando ele ABRE a frase.
+ *
+ * ⚠️ NAO troque por `capitalize` do CSS: aquilo maiuscula CADA palavra e
+ * produzia "Agosto De 2026 · 4 Pedidos". `first-letter:uppercase` tambem nao
+ * serve — `::first-letter` so vale em caixa de bloco, e estes rotulos vivem em
+ * `<span>`. Capitalizar no dado e o unico jeito que acerta a frase inteira.
+ */
+export function rotuloDoMesEmMaiuscula(mes: string): string {
+  const rotulo = rotuloDoMes(mes);
+  return rotulo.charAt(0).toUpperCase() + rotulo.slice(1);
 }
 
 export function FiltroMes({ mes }: FiltroMesProps) {
@@ -41,8 +55,8 @@ export function FiltroMes({ mes }: FiltroMesProps) {
       <Seta href={`/pedidos?mes=${anterior}`} rotulo={`Mês anterior: ${rotuloDoMes(anterior)}`}>
         ‹
       </Seta>
-      <span className="min-w-[9.5rem] text-center text-[13px] font-medium capitalize text-ink">
-        {rotuloDoMes(mes)}
+      <span className="min-w-[9.5rem] text-center text-[13px] font-medium text-ink">
+        {rotuloDoMesEmMaiuscula(mes)}
       </span>
       {/* O proximo mes existe mesmo no futuro: e assim que se confere se algo
           caiu no mes errado — que e justamente o bug que a RN-114 evita. */}
@@ -67,7 +81,7 @@ function Seta({
       href={href}
       aria-label={rotulo}
       title={rotulo}
-      className="rounded-button border border-border-input px-2.5 py-1 text-[15px] leading-none text-ink hover:bg-table-head focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+      className="rounded-button border border-border-input px-2.5 py-1 text-[15px] leading-none text-ink hover:bg-table-head foco"
     >
       {children}
     </Link>

@@ -18,11 +18,12 @@
  */
 import { redirect } from "next/navigation";
 
-import { lerPedidos, mesCorrente, type StatusPedido } from "@/lib/actions/pedidos";
+import { lerPedidos, mesCorrente, ORDENS_PEDIDOS, type StatusPedido } from "@/lib/actions/pedidos";
+import { CabecalhoOrdenavel, lerOrdem } from "@/components/ui/cabecalho-ordenavel";
 import { lerSessao } from "@/lib/auth/sessao";
 import { formatarBRL, type Canal } from "@/lib/pricing";
 
-import { FiltroMes, rotuloDoMes } from "./_components/filtro-mes";
+import { FiltroMes, rotuloDoMes, rotuloDoMesEmMaiuscula } from "./_components/filtro-mes";
 
 export const dynamic = "force-dynamic";
 
@@ -43,13 +44,26 @@ const PILL_STATUS: Record<StatusPedido, { rotulo: string; classe: string }> = {
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ mes?: string; ordem?: string; dir?: string }>;
 }) {
   const sessao = await lerSessao();
   if (!sessao) redirect("/login");
 
-  const { mes: mesPedido } = await searchParams;
-  const { pedidos, totais, dinheiroOculto, mes } = await lerPedidos(sessao.papel, mesPedido);
+  const params = await searchParams;
+  const { ordem, direcao } = lerOrdem(ORDENS_PEDIDOS, params.ordem, params.dir);
+  const { pedidos, totais, dinheiroOculto, mes } = await lerPedidos(
+    sessao.papel,
+    params.mes,
+    ordem,
+    direcao,
+  );
+
+  /**
+   * O MES tem de sobreviver a troca de ordem. Sem isto, ordenar por Valor
+   * jogaria a pessoa de volta ao mes corrente e o fechamento do mes passado
+   * sumiria embaixo dela.
+   */
+  const filtrosAtuais = { mes };
 
   const colunas = dinheiroOculto ? 5 : 7;
 
@@ -58,8 +72,9 @@ export default async function PedidosPage({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h1 className="font-display text-[22px] font-bold text-navy">Pedidos</h1>
-          <span className="text-[13px] capitalize text-ink-2">
-            {rotuloDoMes(mes)} · {pedidos.length} pedido{pedidos.length === 1 ? "" : "s"}
+          <span className="text-[13px] text-ink-2">
+            {rotuloDoMesEmMaiuscula(mes)} · {pedidos.length} pedido
+            {pedidos.length === 1 ? "" : "s"}
             {mes === mesCorrente() ? "" : " · mês fechado"}
           </span>
         </div>
@@ -90,21 +105,73 @@ export default async function PedidosPage({
         </>
       )}
 
-      <div className="overflow-x-auto rounded-card border border-border bg-card">
+      {/* `relative` para que qualquer filho `position:absolute` (sr-only,
+          tooltip) seja recortado POR ESTE contentor. Sem ele o elemento
+          absoluto escapa da caixa que rola e faz a pagina inteira rolar de
+          lado — foi o que aconteceu em /estoque. Ver o comentario de la. */}
+      <div className="relative overflow-x-auto rounded-card border border-border bg-card shadow-(--shadow-card)">
         <table className="w-full min-w-[720px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-table-head text-left text-[11px] uppercase tracking-[.12em] text-ink-2">
-              <th scope="col" className="px-4 py-2.5 font-normal">Nº</th>
-              <th scope="col" className="px-2 py-2.5 font-normal">Produto</th>
-              <th scope="col" className="px-2 py-2.5 font-normal">Canal</th>
+              <CabecalhoOrdenavel
+                rotulo="Nº"
+                chave="numero"
+                base="/pedidos"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                className="whitespace-nowrap px-4"
+              />
+              <CabecalhoOrdenavel
+                rotulo="Produto"
+                chave="produto"
+                base="/pedidos"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+              />
+              <CabecalhoOrdenavel
+                rotulo="Canal"
+                chave="canal"
+                base="/pedidos"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+              />
               {!dinheiroOculto && (
                 <>
-                  <th scope="col" className="px-2 py-2.5 text-right font-normal">Valor</th>
-                  <th scope="col" className="px-2 py-2.5 text-right font-normal">Taxa</th>
+                  <CabecalhoOrdenavel
+                    rotulo="Valor"
+                    chave="valor"
+                    base="/pedidos"
+                    ordemAtual={ordem}
+                    direcaoAtual={direcao}
+                    parametros={filtrosAtuais}
+                    direita
+                  />
+                  <CabecalhoOrdenavel
+                    rotulo="Taxa"
+                    chave="taxa"
+                    base="/pedidos"
+                    ordemAtual={ordem}
+                    direcaoAtual={direcao}
+                    parametros={filtrosAtuais}
+                    direita
+                  />
                 </>
               )}
+              {/* NF-e nao ordena: sao dois estados (emitida ou nao) e o filtro
+                  util seria "so as pendentes", que e outra coisa. */}
               <th scope="col" className="px-2 py-2.5 font-normal">NF-e</th>
-              <th scope="col" className="px-4 py-2.5 font-normal">Status</th>
+              <CabecalhoOrdenavel
+                rotulo="Status"
+                chave="status"
+                base="/pedidos"
+                ordemAtual={ordem}
+                direcaoAtual={direcao}
+                parametros={filtrosAtuais}
+                className="px-4"
+              />
             </tr>
           </thead>
           <tbody>
@@ -118,8 +185,18 @@ export default async function PedidosPage({
               pedidos.map((p) => {
                 const pill = PILL_STATUS[p.status];
                 return (
-                  <tr key={p.id} className="border-t border-divider">
-                    <th scope="row" className="px-4 py-2.5 text-left font-normal tabular-nums text-ink-2">
+                  <tr
+                    key={p.id}
+                    className="border-t border-divider transition-colors duration-(--duracao-rapida) ease-(--ease-padrao) hover:bg-row-selected"
+                  >
+                    {/* `whitespace-nowrap`: com o produto absorvendo a sobra,
+                        esta coluna encolhe ate 72px e "MM-1043" quebrava em
+                        "MM-" / "1043" — numero de pedido partido ao meio se le
+                        errado, e e por ele que se acha o pedido no canal. */}
+                    <th
+                      scope="row"
+                      className="whitespace-nowrap px-4 py-2.5 text-left font-normal tabular-nums text-ink-2"
+                    >
                       {p.numero}
                       {/* So para quem ve dinheiro: o marcador fala de VALORES
                           nao conferidos, e para o operador isso e ruido sobre
@@ -134,7 +211,10 @@ export default async function PedidosPage({
                         </span>
                       )}
                     </th>
-                    <td className="max-w-0 truncate px-2 py-2.5">{p.produto}</td>
+                    {/* `w-full max-w-0` em par — ver /estoque e /anuncios. Sem o
+                        `w-full` a coluna do produto encolhe ao minimo e o nome
+                        sai cortado enquanto sobra folga nas colunas fixas. */}
+                    <td className="w-full max-w-0 truncate px-2 py-2.5">{p.produto}</td>
                     <td className="px-2 py-2.5 text-ink-2">{ROTULO_CANAL[p.canal]}</td>
                     {!dinheiroOculto && (
                       <>
@@ -155,7 +235,12 @@ export default async function PedidosPage({
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`rounded-pill px-2.5 py-[3px] text-[11px] ${pill.classe}`}>
+                      {/* `whitespace-nowrap`: "Aguardando envio" e "Em
+                          transporte" quebravam em duas linhas e a pill virava
+                          um retangulo de dois andares. */}
+                      <span
+                        className={`whitespace-nowrap rounded-pill px-2.5 py-[3px] text-[11px] ${pill.classe}`}
+                      >
                         {pill.rotulo}
                       </span>
                     </td>
