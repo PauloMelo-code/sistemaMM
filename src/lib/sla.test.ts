@@ -85,7 +85,7 @@ test("duracao trunca para o minuto e nunca arredonda prazo para cima", () => {
 
 test("vencida troca a frase inteira", () => {
   assert.equal(textoPrazo(3 * H + 20 * 60), "3h 20min restantes");
-  assert.equal(textoPrazo(-12 * 60), "vencida ha 12min");
+  assert.equal(textoPrazo(-12 * 60), "vencida há 12min");
   assert.equal(textoPrazo(Number.NaN), "prazo indefinido");
 });
 

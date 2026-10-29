@@ -115,6 +115,8 @@ export function formatarDuracao(segundos: number): string {
  */
 export function textoPrazo(segundosRestantes: number): string {
   if (!Number.isFinite(segundosRestantes)) return "prazo indefinido";
-  if (segundosRestantes <= 0) return `vencida ha ${formatarDuracao(segundosRestantes)}`;
+  // "há" COM acento: isto vai para a pill vermelha que o Anderson le o dia
+  // inteiro. Os comentarios desta base sao sem acento; o texto de TELA nao.
+  if (segundosRestantes <= 0) return `vencida há ${formatarDuracao(segundosRestantes)}`;
   return `${formatarDuracao(segundosRestantes)} restantes`;
 }
