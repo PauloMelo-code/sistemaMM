@@ -18,6 +18,7 @@
  */
 import { redirect } from "next/navigation";
 
+import { lerConexoes } from "@/lib/actions/integracoes";
 import { contarPerguntasPendentes } from "@/lib/actions/perguntas";
 import { lerSessao } from "@/lib/auth/sessao";
 
@@ -37,11 +38,30 @@ export default async function PainelLayout({ children }: { children: React.React
   const sessao = await lerSessao();
   if (!sessao) redirect("/login");
 
-  const perguntasPendentes = await contarPerguntasPendentes();
+  /**
+   * As duas leituras do shell, em paralelo — sao independentes e sequencia-las
+   * somaria a latencia das duas em TODA navegacao do painel.
+   *
+   * `conexoes` alimenta o rodape da sidebar. Ele exibia status CRAVADO ("ML ·
+   * ativo" em verde, sempre) enquanto /integracoes dizia o contrario; agora as
+   * duas telas leem a mesma fonte, entao nao tem como divergirem.
+   *
+   * So `canal` + `estado` atravessam para a Sidebar, que e client component: o
+   * resto (id da conta ML, prazo do token) iria no payload de TODO papel,
+   * inclusive o operador, a quem a matriz nega `integracoes`.
+   */
+  const [perguntasPendentes, conexoes] = await Promise.all([
+    contarPerguntasPendentes(),
+    lerConexoes(),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <Sidebar perguntasPendentes={perguntasPendentes} sessao={sessao} />
+      <Sidebar
+        perguntasPendentes={perguntasPendentes}
+        sessao={sessao}
+        conexoes={conexoes.map(({ canal, estado }) => ({ canal, estado }))}
+      />
       <main className="flex min-w-0 flex-1 flex-col gap-5 px-4 py-5 md:gap-6 md:px-8 md:py-7">
         {children}
       </main>
