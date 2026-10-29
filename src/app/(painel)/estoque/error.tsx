@@ -21,7 +21,7 @@ export default function ErroEstoque({
   }, [error]);
 
   return (
-    <div role="alert" className="flex flex-col items-start gap-2 rounded-card border border-border bg-card px-6 py-8">
+    <div role="alert" className="flex flex-col items-start gap-2 rounded-card border border-border bg-card shadow-(--shadow-card) px-6 py-8">
       <h1 className="font-display text-[15px] font-bold text-navy">
         Não foi possível carregar o estoque
       </h1>
@@ -32,7 +32,7 @@ export default function ErroEstoque({
       <button
         type="button"
         onClick={reset}
-        className="mt-2 rounded-button bg-navy px-4 py-2 text-[13px] text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="mt-2 rounded-button bg-navy px-4 py-2 text-[13px] text-white foco"
       >
         Tentar de novo
       </button>

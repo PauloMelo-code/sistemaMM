@@ -19,7 +19,7 @@ export default function CarregandoPerguntas() {
       </header>
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <div className="overflow-hidden rounded-card border border-border bg-card">
+        <div className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col gap-2 border-b border-divider px-5 py-4 last:border-b-0">
               {/* Espelha o `flex-wrap` da linha canal+pill do conteudo real:
@@ -38,7 +38,7 @@ export default function CarregandoPerguntas() {
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-card border border-border bg-card">
+        <div className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)">
           <div className="border-b border-border px-5 py-4">
             <div className="h-4 w-44 rounded-button bg-border" />
           </div>

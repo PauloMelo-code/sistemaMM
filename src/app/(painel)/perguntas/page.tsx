@@ -74,14 +74,14 @@ export default async function PerguntasPage() {
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.4fr_1fr]">
         <section
           aria-label="Fila de perguntas"
-          className="overflow-hidden rounded-card border border-border bg-card"
+          className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
         >
           <ListaPerguntas perguntas={perguntas} truncada={truncada} />
         </section>
 
         <section
           aria-label="Modelos de resposta"
-          className="overflow-hidden rounded-card border border-border bg-card"
+          className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
         >
           <h2 className="border-b border-border px-5 py-4 font-display text-[15px] font-bold text-navy">
             Modelos de resposta

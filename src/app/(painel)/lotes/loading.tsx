@@ -8,7 +8,7 @@ export default function CarregandoLotes() {
       </header>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col gap-3 rounded-card border border-border bg-card p-5">
+          <div key={i} className="flex flex-col gap-3 rounded-card border border-border bg-card shadow-(--shadow-card) p-5">
             <div className="flex items-baseline justify-between gap-2">
               <div className="h-4 w-48 rounded-button bg-border" />
               <div className="h-3 w-28 rounded-button bg-divider" />

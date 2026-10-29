@@ -33,7 +33,7 @@ export default function ErroPedidos({
       <button
         type="button"
         onClick={reset}
-        className="mt-2 rounded-button bg-navy px-4 py-2 text-[13px] text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="mt-2 rounded-button bg-navy px-4 py-2 text-[13px] text-white foco"
       >
         Tentar de novo
       </button>

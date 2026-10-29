@@ -11,7 +11,7 @@ export default function CarregandoAnuncios() {
           <div key={i} className="h-8 w-24 rounded-button bg-divider" />
         ))}
       </div>
-      <div className="overflow-hidden rounded-card border border-border bg-card">
+      <div className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)">
         <div className="h-9 bg-table-head" />
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="flex items-center gap-4 border-t border-divider px-4 py-3">

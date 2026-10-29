@@ -52,7 +52,7 @@ export function ChipsFiltro({ canal, status }: ChipsFiltroProps) {
             key={chip.rotulo}
             href={query ? `/anuncios?${query}` : "/anuncios"}
             aria-current={ativo ? "true" : undefined}
-            className={`rounded-button px-3 py-1.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy ${
+            className={`rounded-button px-3 py-1.5 text-[13px] foco ${
               ativo
                 ? "bg-navy text-white"
                 : "border border-border-input text-ink hover:bg-table-head"

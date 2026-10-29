@@ -47,7 +47,7 @@ export default async function VisaoGeralPage() {
         </div>
         <Link
           href="/anuncios"
-          className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink hover:bg-table-head focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+          className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink hover:bg-table-head foco"
         >
           Ver anúncios
         </Link>
@@ -85,7 +85,7 @@ export default async function VisaoGeralPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
         <section
           aria-label="Anúncios em destaque"
-          className="overflow-hidden rounded-card border border-border bg-card"
+          className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
         >
           <h2 className="border-b border-border px-5 py-4 font-display text-[15px] font-bold text-navy">
             Anúncios em destaque
@@ -122,13 +122,13 @@ export default async function VisaoGeralPage() {
         <div className="flex flex-col gap-4">
           <section
             aria-label="Perguntas mais urgentes"
-            className="overflow-hidden rounded-card border border-border bg-card"
+            className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
           >
             <h2 className="flex items-center justify-between gap-2 border-b border-border px-5 py-4 font-display text-[15px] font-bold text-navy">
               Perguntas urgentes
               <Link
                 href="/perguntas"
-                className="text-xs font-normal text-ink-2 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+                className="text-xs font-normal text-ink-2 underline foco"
               >
                 ver todas
               </Link>
@@ -175,7 +175,7 @@ export default async function VisaoGeralPage() {
           {v.lotes && (
             <section
               aria-label="Estoque por lote"
-              className="overflow-hidden rounded-card border border-border bg-card"
+              className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
             >
               <h2 className="border-b border-border px-5 py-4 font-display text-[15px] font-bold text-navy">
                 Estoque por lote
@@ -265,7 +265,10 @@ function Kpi({
   return href ? (
     <Link
       href={href}
-      className={`${classe} hover:border-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy`}
+      // Este KPI E um link (leva ao filtro). A sombra que sobe no hover diz
+      // "isto e clicavel" sem inventar cor nova — os cards nao-clicaveis ficam
+      // parados, e a diferenca entre os dois passa a ser visivel.
+      className={`${classe} transition-shadow duration-(--duracao-rapida) ease-(--ease-padrao) hover:border-navy hover:shadow-(--shadow-hover) foco`}
     >
       {conteudo}
     </Link>

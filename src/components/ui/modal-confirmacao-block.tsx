@@ -102,7 +102,19 @@ export function ModalConfirmacaoBlock({
       onClick={(evento) => {
         if (evento.target === dialogo.current && !bloqueado && !ocupado) onCancelar();
       }}
-      className="max-w-[440px] rounded-card border border-border bg-card p-0 text-ink backdrop:bg-navy/40 open:flex open:flex-col"
+      /**
+       * ⚠️ `m-auto` NAO E ESPACAMENTO — e o que CENTRALIZA o modal.
+       *
+       * O navegador centra `<dialog>` modal com `margin: auto` sobre
+       * `position: fixed; inset: 0` (folha de estilo do proprio agente). O
+       * Preflight do Tailwind zera `margin` em TODO elemento, entao a regra do
+       * navegador e sobrescrita e o modal cola no canto superior esquerdo —
+       * medido: x=0, y=0, com 1480px de sobra a direita numa tela de 1920.
+       *
+       * Vale para os TRES `<dialog>` da base (este, formulario-lote e
+       * formulario-item). Tirar esta classe devolve o modal para o canto.
+       */
+      className="m-auto max-w-[440px] rounded-card border border-border bg-card shadow-(--shadow-card) p-0 text-ink backdrop:bg-navy/40 open:flex open:flex-col"
     >
       <div className="flex flex-col gap-3 p-6">
         <h2 id="titulo-confirmacao" className="font-display text-[17px] font-bold text-navy">
@@ -128,7 +140,7 @@ export function ModalConfirmacaoBlock({
             type="button"
             onClick={onCancelar}
             disabled={bloqueado || ocupado}
-            className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink disabled:opacity-50 hover:bg-table-head focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+            className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink disabled:opacity-50 hover:bg-table-head foco"
           >
             Cancelar
           </button>
@@ -136,10 +148,8 @@ export function ModalConfirmacaoBlock({
             type="button"
             onClick={onConfirmar}
             disabled={bloqueado || ocupado}
-            className={`rounded-button px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-              destrutivo
-                ? "bg-danger focus-visible:outline-danger"
-                : "bg-navy focus-visible:outline-navy"
+            className={`rounded-button px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50 ${
+              destrutivo ? "bg-danger foco-perigo" : "bg-navy foco"
             }`}
           >
             {ocupado ? "Aguarde…" : bloqueado ? `${rotuloConfirmar} (${restam})` : rotuloConfirmar}

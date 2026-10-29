@@ -22,7 +22,7 @@ export default function LoginPage() {
           <p className="text-[13px] text-ink-2">Painel de gestão de marketplaces</p>
         </div>
 
-        <div className="rounded-card border border-border bg-card p-6">
+        <div className="rounded-card border border-border bg-card shadow-(--shadow-card) p-6">
           <FormularioLogin />
         </div>
 

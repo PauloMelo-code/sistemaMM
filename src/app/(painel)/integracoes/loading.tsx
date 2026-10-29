@@ -17,7 +17,7 @@ export default function CarregandoIntegracoes() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex flex-col gap-3 rounded-card border border-border bg-card p-5">
+          <div key={i} className="flex flex-col gap-3 rounded-card border border-border bg-card shadow-(--shadow-card) p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="h-4 w-56 rounded-button bg-border" />
               <div className="h-5 w-24 rounded-pill bg-divider" />
@@ -32,7 +32,7 @@ export default function CarregandoIntegracoes() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-5">
+      <div className="flex flex-col gap-3 rounded-card border border-border bg-card shadow-(--shadow-card) p-5">
         <div className="h-4 w-40 rounded-button bg-border" />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (

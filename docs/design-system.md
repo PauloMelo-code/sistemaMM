@@ -15,7 +15,7 @@ color:
   on-navy:         { class: "on-navy",         var: "--on-navy",         value: "#C7D2DD" }  # texto claro na sidebar
   on-navy-2:       { class: "on-navy-2",       var: "--on-navy-2",       value: "#9FB0C2" }  # secundario na sidebar
   # Superficies
-  page:            { class: "page",            var: "--page",            value: "#EDEFF2" }
+  page:            { class: "page",            var: "--page",            value: "#F7F8FA" }  # clareado na casca de 2026-08-11 (era #EDEFF2)
   card:            { class: "card",            var: "--card",            value: "#FFFFFF" }
   table-head:      { class: "table-head",      var: "--table-head",      value: "#F7F8FA" }
   row-selected:    { class: "row-selected",    var: "--row-selected",    value: "#F0F4F9" }  # item selecionado no CMS
@@ -37,9 +37,17 @@ color:
   info-soft:       { class: "info-soft",       var: "--info-soft",       value: "#E3EEF9" }
   whatsapp:        { class: "whatsapp",        var: "--whatsapp",        value: "#1FA855" }  # so botoes de WhatsApp
 radius:
-  card:   { class: "rounded-card",   var: "--radius-card",   value: "8px"  }
+  card:   { class: "rounded-card",   var: "--radius-card",   value: "14px" }  # era 8px ate a casca de 2026-08-11
   button: { class: "rounded-button", var: "--radius-button", value: "6px"  }  # botoes e inputs
   pill:   { class: "rounded-pill",   var: "--radius-pill",   value: "20px" }
+elevation:
+  # NOVOS na casca de 2026-08-11. Sombra tingida de navy, nao preta: preto puro
+  # sobre #F7F8FA acinzenta a paleta.
+  card:  { class: "shadow-(--shadow-card)",  var: "--shadow-card",  value: "0 1px 2px rgba(22,50,79,.06), 0 1px 3px rgba(22,50,79,.04)" }
+  hover: { class: "shadow-(--shadow-hover)", var: "--shadow-hover", value: "0 4px 12px rgba(22,50,79,.10), 0 2px 4px rgba(22,50,79,.06)" }
+motion:
+  duracao: { var: "--duracao-rapida", value: "150ms" }
+  ease:    { var: "--ease-padrao",    value: "cubic-bezier(.4,0,.2,1)" }
 typography:
   display: { class: "font-display", var: "--font-display", value: "Archivo", weights: [500, 600, 700, 800] }
   body:    { class: "font-body",    var: "--font-body",    value: "Jost",    weights: [300, 400, 500, 600] }
@@ -55,7 +63,7 @@ typography:
 spacing:
   card_padding: "18-22px"
   grid_gap: "16-20px"
-  sidebar_width: "236px"
+  sidebar_width: "200px"   # era 236px; o icone assumiu parte do reconhecimento
 grids:
   # larguras de coluna sao intencionais — reproduzir exatamente
   anuncios:  "minmax(0,1fr) 52px 88px 88px 72px 104px"
@@ -83,7 +91,15 @@ espelho legivel, e o handoff
 ([`design_handoff_sistema_mm/README.md`](../design_handoff_sistema_mm/README.md))
 e a origem historica do design.
 
-> O design e **final** (hi-fi). Divergiu do screenshot, esta errado.
+> ⚠️ **ISTO MUDOU EM 2026-08-11.** Ate essa data valia "divergiu do screenshot,
+> esta errado". Por decisao do Paulo, o painel adotou uma **casca visual nova**
+> (fundo mais claro, raio de card maior, sombra, sidebar de 200px com icones).
+> A partir daqui o **handoff nao e mais o arbitro do shell e das superficies** —
+> quem manda e este doc mais o `@theme`. O que o handoff continua arbitrando:
+> **conteudo de cada tela, larguras de coluna, e toda a semantica de cor**
+> (navy e laranja da marca; ambar/verde/vermelho/azul de status). Detalhes e o
+> porque em [known-issues.md](known-issues.md).
+>
 > Os **dados** do prototipo sao mock — esses sim vem da API/banco.
 
 ---
@@ -141,9 +157,19 @@ Nao troque de familia por "ficar melhor"; a hierarquia do produto depende disso.
 
 ## Raio e espacamento
 
-Escala fechada: card 8px · botao/input 6px · pill 20px.
-Padding de card 18–22px, gap de grid 16–20px, sidebar 236px.
-Valor fora da escala (`rounded-[14px]`) e erro.
+Escala fechada: card **14px** · botao/input 6px · pill 20px.
+Padding de card 18–22px, gap de grid 16–20px, sidebar **200px**.
+Valor fora da escala continua sendo erro — o que mudou foi o VALOR do token de
+card, nao a liberdade de inventar raios. Escreva `rounded-card`, nunca
+`rounded-[14px]`: no dia em que o raio mudar de novo, o literal fica para tras.
+
+## Elevacao e movimento
+
+Card separa-se da pagina por **sombra**, nao mais por contraste de fundo — o
+`--page` clareou para `#F7F8FA` e a borda de 1px sozinha dava ar de prototipo.
+Use `--shadow-card` em repouso e `--shadow-hover` no estado interativo.
+Transicao: `--duracao-rapida` (150ms) com `--ease-padrao`. Nada mais longo:
+painel operacional usado o dia inteiro transforma animacao em espera.
 
 ---
 

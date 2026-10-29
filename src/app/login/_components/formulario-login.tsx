@@ -114,7 +114,7 @@ export function FormularioLogin() {
           required
           autoComplete="username"
           autoFocus
-          className="rounded-button border border-border-input px-3 py-2.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy"
+          className="rounded-button border border-border-input px-3 py-2.5 text-[13px] foco-campo"
         />
       </div>
 
@@ -128,7 +128,7 @@ export function FormularioLogin() {
           type="password"
           required
           autoComplete="current-password"
-          className="rounded-button border border-border-input px-3 py-2.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy"
+          className="rounded-button border border-border-input px-3 py-2.5 text-[13px] foco-campo"
         />
       </div>
 
@@ -143,7 +143,7 @@ export function FormularioLogin() {
       <button
         type="submit"
         disabled={enviando}
-        className="rounded-button bg-navy px-4 py-2.5 text-[13px] font-medium text-white disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="rounded-button bg-navy px-4 py-2.5 text-[13px] font-medium text-white disabled:opacity-60 foco"
       >
         {enviando ? "Entrando…" : "Entrar"}
       </button>

@@ -94,7 +94,10 @@ export function FiltrosEstoque({ kpis, segmentos, segmento, situacao }: FiltrosE
               key={card.rotulo}
               href={destino}
               aria-current={ativo ? "true" : undefined}
-              className={`${classe} hover:border-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy`}
+              // KPI que filtra E clicavel; o que nao filtra (`card.filtra ===
+              // undefined`, acima) e uma `div` parada. A sombra no hover e o
+              // que separa os dois na tela. Ver a nota em (painel)/page.tsx.
+              className={`${classe} transition-shadow duration-(--duracao-rapida) ease-(--ease-padrao) hover:border-navy hover:shadow-(--shadow-hover) foco`}
             >
               {conteudo}
             </Link>
@@ -129,7 +132,7 @@ function Chip({
     <Link
       href={href}
       aria-current={ativo ? "true" : undefined}
-      className={`rounded-button px-3 py-1.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy ${
+      className={`rounded-button px-3 py-1.5 text-[13px] foco ${
         ativo ? "bg-navy text-white" : "border border-border-input text-ink hover:bg-table-head"
       }`}
     >

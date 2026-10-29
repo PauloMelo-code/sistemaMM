@@ -161,7 +161,7 @@ export function ListaPerguntas({ perguntas, truncada }: ListaPerguntasProps) {
                     type="button"
                     aria-disabled="true"
                     aria-describedby={ID_AVISO_COMPOSITOR}
-                    className="cursor-not-allowed rounded-button border border-navy px-3 py-[5px] text-xs text-navy opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+                    className="cursor-not-allowed rounded-button border border-navy px-3 py-[5px] text-xs text-navy opacity-50 foco"
                   >
                     Responder
                   </button>
@@ -169,7 +169,7 @@ export function ListaPerguntas({ perguntas, truncada }: ListaPerguntasProps) {
                     type="button"
                     aria-disabled="true"
                     aria-describedby={ID_AVISO_COMPOSITOR}
-                    className="cursor-not-allowed rounded-button border border-border-input px-3 py-[5px] text-xs text-ink-2 opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+                    className="cursor-not-allowed rounded-button border border-border-input px-3 py-[5px] text-xs text-ink-2 opacity-50 foco"
                   >
                     Usar modelo
                   </button>

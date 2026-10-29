@@ -37,7 +37,7 @@ export default async function LotesPage() {
   // o link esta quebrado; lista vazia seria mentira ("nenhum lote").
   if (!estado) {
     return (
-      <div className="flex flex-col items-start gap-2 rounded-card border border-border bg-card px-6 py-10">
+      <div className="flex flex-col items-start gap-2 rounded-card border border-border bg-card shadow-(--shadow-card) px-6 py-10">
         <h1 className="font-display text-[18px] font-bold text-navy">Lotes</h1>
         <p className="max-w-prose text-[13px] text-ink-2">
           Esta tela não faz parte do seu acesso. Um lote é custo de arremate do
@@ -71,7 +71,7 @@ export default async function LotesPage() {
       </header>
 
       {lotes.length === 0 ? (
-        <p className="rounded-card border border-border bg-card px-6 py-12 text-center text-[13px] text-ink-2">
+        <p className="rounded-card border border-border bg-card shadow-(--shadow-card) px-6 py-12 text-center text-[13px] text-ink-2">
           Nenhum lote cadastrado.
         </p>
       ) : (

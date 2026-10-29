@@ -43,7 +43,7 @@ const ROTULO_SITUACAO: Record<string, string> = {
 };
 
 const campo =
-  "rounded-button border border-border-input px-3 py-2 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy";
+  "rounded-button border border-border-input px-3 py-2 text-[13px] foco-campo";
 const rotulo = "text-xs uppercase tracking-[.12em] text-ink-2";
 
 function Dialogo({
@@ -104,7 +104,11 @@ function Dialogo({
         e.preventDefault();
         if (!enviando) onFechar();
       }}
-      className="w-[min(94vw,540px)] rounded-card border border-border bg-card p-0 text-ink backdrop:bg-navy/40"
+      // `m-auto` centraliza o modal: o Preflight do Tailwind zera o
+      // `margin: auto` que o navegador usa para centrar `<dialog>`. Sem ele o
+      // formulario abre colado no canto superior esquerdo. Ver a explicacao
+      // completa em src/components/ui/modal-confirmacao-block.tsx.
+      className="m-auto w-[min(94vw,540px)] rounded-card border border-border bg-card shadow-(--shadow-card) p-0 text-ink backdrop:bg-navy/40"
     >
       <form onSubmit={aoEnviar} className="flex flex-col gap-4 p-6">
         <h2 id="titulo-form-item" className="font-display text-[17px] font-bold text-navy">
@@ -199,10 +203,10 @@ function Dialogo({
         ) : null}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onFechar} disabled={enviando} className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink disabled:opacity-50 hover:bg-table-head focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+          <button type="button" onClick={onFechar} disabled={enviando} className="rounded-button border border-border-input bg-card px-4 py-2 text-[13px] text-ink disabled:opacity-50 hover:bg-table-head foco">
             Cancelar
           </button>
-          <button type="submit" disabled={enviando || lotes.length === 0} className="rounded-button bg-navy px-4 py-2 text-[13px] font-medium text-white disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+          <button type="submit" disabled={enviando || lotes.length === 0} className="rounded-button bg-navy px-4 py-2 text-[13px] font-medium text-white disabled:opacity-60 foco">
             {enviando ? "Salvando…" : "Salvar"}
           </button>
         </div>
@@ -218,7 +222,7 @@ export function BotaoNovoItem({ lotes }: { lotes: LoteOpcao[] }) {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="rounded-button bg-navy px-4 py-2 text-[13px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="rounded-button bg-navy px-4 py-2 text-[13px] font-medium text-white foco"
       >
         Novo item
       </button>
@@ -236,13 +240,13 @@ export function AcoesItem({ item, lotes }: { item: ItemEditavel; lotes: LoteOpca
   return (
     <>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={() => setEditando(true)} className="rounded-button border border-border-input px-2.5 py-1 text-xs text-ink hover:bg-table-head focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+        <button type="button" onClick={() => setEditando(true)} className="rounded-button border border-border-input px-2.5 py-1 text-xs text-ink hover:bg-table-head foco">
           Editar
         </button>
         <button
           type="button"
           onClick={() => { setErro(""); setConfirmando(true); }}
-          className="rounded-button border border-border-input px-2.5 py-1 text-xs text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+          className="rounded-button border border-border-input px-2.5 py-1 text-xs text-danger hover:bg-danger-soft foco-perigo"
         >
           Excluir
         </button>

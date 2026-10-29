@@ -15,8 +15,11 @@
   --color-on-navy: #C7D2DD;
   --color-on-navy-2: #9FB0C2;
 
-  /* Superficies */
-  --color-page: #EDEFF2;
+  /* Superficies
+     `--color-page` clareou de #EDEFF2 para #F7F8FA na adocao da casca nova
+     (2026-08-11). O contraste com o card branco fica mais sutil, e e a sombra
+     — nao a diferenca de fundo — que passa a separar card de pagina. */
+  --color-page: #F7F8FA;
   --color-card: #FFFFFF;
   --color-table-head: #F7F8FA;
   --color-row-selected: #F0F4F9;
@@ -39,14 +42,96 @@
   --color-info-soft: #E3EEF9;
   --color-whatsapp: #1FA855;
 
-  /* Raio — escala fechada. Valor fora dela e erro. */
-  --radius-card: 8px;
+  /* Raio — escala fechada. Valor fora dela e erro.
+     `--radius-card` subiu de 8px para 14px na casca nova (2026-08-11). Mexer
+     no TOKEN, e nao espalhar `rounded-[14px]` pelas telas, e o que mantem a
+     escala fechada valendo: continua havendo tres raios, so que o de card e
+     outro. */
+  --radius-card: 14px;
   --radius-button: 6px;
   --radius-pill: 20px;
+
+  /* Elevacao — NOVO na casca de 2026-08-11.
+     Ate aqui o painel separava card de pagina so por borda de 1px, e era isso
+     que dava o ar de prototipo portado. A sombra e tingida de navy (nao preto)
+     para nao acinzentar a paleta: preto puro sobre #F7F8FA suja. */
+  --shadow-card: 0 1px 2px rgba(22, 50, 79, .06), 0 1px 3px rgba(22, 50, 79, .04);
+  --shadow-hover: 0 4px 12px rgba(22, 50, 79, .10), 0 2px 4px rgba(22, 50, 79, .06);
+
+  /* Movimento — NOVO. Curto de proposito: painel operacional que se usa o dia
+     inteiro; animacao longa vira espera. */
+  --duracao-rapida: 150ms;
+  --ease-padrao: cubic-bezier(.4, 0, .2, 1);
 
   /* Tipografia — vars vindas do next/font em src/app/layout.tsx */
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   FOCO VISIVEL — uma definicao, quatro variantes.
+
+   Antes desta secao a mesma string
+   `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy`
+   estava copiada 36 vezes em 22 arquivos. Copia nao e so feiura: e a garantia
+   de que um controle novo nasce SEM foco porque alguem esqueceu de colar, e de
+   que mudar a espessura do anel exige 36 edicoes certas.
+
+   Por que quatro e nao uma: o offset e a cor dependem do FUNDO em que o
+   controle vive, nao do gosto de quem escreve.
+   --------------------------------------------------------------------------- */
+
+/** Padrao: qualquer controle sobre fundo claro. */
+@utility foco {
+  &:focus-visible {
+    outline: 2px solid var(--color-navy);
+    outline-offset: 2px;
+  }
+}
+
+/** Campo de formulario. Offset 1px porque o input ja tem borda propria — com
+    2px o anel descola e parece defeito de renderizacao. */
+@utility foco-campo {
+  &:focus-visible {
+    outline: 2px solid var(--color-navy);
+    outline-offset: 1px;
+  }
+}
+
+/** Sobre a sidebar navy. Navy sobre navy seria invisivel; o ambar aqui NAO
+    contradiz "ambar e alerta" — foco nao e decoracao, e o unico contraste
+    disponivel sobre #16324F que ja existe na paleta. */
+@utility foco-alerta {
+  &:focus-visible {
+    outline: 2px solid var(--color-warning);
+    outline-offset: 2px;
+  }
+}
+
+/** Acao destrutiva: o anel acompanha a cor do botao para nao dar sinal trocado
+    ("azul, entao e seguro") num controle que apaga registro. */
+@utility foco-perigo {
+  &:focus-visible {
+    outline: 2px solid var(--color-danger);
+    outline-offset: 2px;
+  }
+}
+
+/**
+ * Transicao de cor SEM o anel de foco.
+ *
+ * `transition-colors` do Tailwind inclui `outline-color`. Com ela, o anel de
+ * foco nascia na cor do texto e migrava para a cor certa ao longo de 150ms —
+ * medido na sidebar: logo apos o Tab o outline saia rgb(199,210,221) e so
+ * depois virava rgb(232,163,61). Indicador de foco tem de ser instantaneo.
+ *
+ * `transition-[color,background-color]` NAO serve: a virgula em valor
+ * arbitrario nao compila e o Tailwind cai para `all` — pior que o problema.
+ */
+@utility transicao-cor {
+  transition-property: color, background-color;
+  transition-duration: var(--duracao-rapida);
+  transition-timing-function: var(--ease-padrao);
 }
 
 body {
