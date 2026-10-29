@@ -1,20 +1,23 @@
 /**
  * Passo 1 do OAuth: manda o Anderson para a tela de autorizacao do ML.
  *
- * COMO USAR: abrir no navegador, uma vez, com o segredo na URL —
- *   https://SEU-DOMINIO/api/integracoes/oauth/mercado-livre/iniciar?t=$WEBHOOK_SECRET
- * Depois de aprovar na conta de vendedor da MM, o ML devolve para o `callback`,
- * que grava a credencial cifrada.
+ * COMO USAR: botao "Conectar Mercado Livre" no card da tela Integracoes. Depois
+ * de aprovar na conta de vendedor da MM, o ML devolve para o `callback`, que
+ * grava a credencial cifrada.
  *
- * POR QUE TEM SEGREDO AQUI: nao existe autenticacao no sistema
- * (docs/known-issues.md 🔴). Sem porteiro, qualquer um dispararia o fluxo e
- * conectaria a PROPRIA conta do ML ao painel — o indice unico so permite uma
- * credencial ativa por canal, entao a dele substituiria a da MM. Quando o login
- * existir, isto vira "so administrador" e o segredo sai.
+ * QUEM PODE: so administrador (`integracoes` + `atualizar`). Conectar SUBSTITUI
+ * a conta do ML do painel inteiro — o indice unico so permite uma credencial
+ * ativa por canal. Ate 2026-10-29 o porteiro era um segredo na query string, do
+ * tempo em que nao havia login; segredo em URL vaza em log de acesso, e quem o
+ * lesse trocaria a conta da MM pela propria. Agora vale a sessao.
+ *
+ * Esta rota fica FORA do `proxy.ts` (matcher exclui `/api/integracoes`), entao
+ * a checagem abaixo e a unica — e e a de verdade (`lerSessao` confere no banco).
  */
-import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { temPermissao } from "@/lib/auth/rbac";
+import { lerSessao } from "@/lib/auth/sessao";
 import {
   COOKIE_ESTADO,
   VALIDADE_ESTADO_MS,
@@ -26,21 +29,13 @@ import {
 
 export const runtime = "nodejs";
 
-function segredoConfere(recebido: string, esperado: string): boolean {
-  const a = createHash("sha256").update(recebido).digest();
-  const b = createHash("sha256").update(esperado).digest();
-  return timingSafeEqual(a, b);
-}
-
-export async function GET(request: Request) {
-  const segredoEsperado = process.env.WEBHOOK_SECRET;
-  if (!segredoEsperado) {
-    return NextResponse.json({ erro: "integracao nao configurada" }, { status: 503 });
-  }
-
-  const url = new URL(request.url);
-  if (!segredoConfere(url.searchParams.get("t") ?? "", segredoEsperado)) {
-    return NextResponse.json({ erro: "nao encontrado" }, { status: 404 });
+export async function GET() {
+  const sessao = await lerSessao();
+  if (!sessao || !temPermissao(sessao.papel, "integracoes", "atualizar")) {
+    return NextResponse.json(
+      { erro: "Só administrador conecta a conta do Mercado Livre." },
+      { status: 403 },
+    );
   }
 
   const clientId = process.env.ML_CLIENT_ID;
@@ -67,8 +62,8 @@ export async function GET(request: Request) {
     }),
   );
 
-  // O estado vai em cookie CIFRADO, nao em sessao de servidor: nao ha sessao
-  // nesta base ainda, e cifrar reusa o cofre das credenciais sem tabela nova.
+  // O estado vai em cookie CIFRADO, nao em sessao de servidor: cifrar reusa o
+  // cofre das credenciais sem tabela nova.
   resposta.cookies.set(COOKIE_ESTADO, selarEstado(estado), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

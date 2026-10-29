@@ -12,7 +12,18 @@
  *
  * Server component: le o estado e nao expoe token nenhum, so "vence em".
  */
-import { lerEstadoIntegracoes, type Conexao, type EstadoConexao } from "@/lib/actions/integracoes";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { temPermissao } from "@/lib/auth/rbac";
+import { lerSessao } from "@/lib/auth/sessao";
+import {
+  lerEstadoIntegracoes,
+  lerUsuarioML,
+  type Conexao,
+  type EstadoConexao,
+} from "@/lib/actions/integracoes";
+import { ReautorizacaoNecessariaError } from "@/lib/integracoes/mercado-livre/token";
 import { formatarDuracao } from "@/lib/sla";
 
 import { Alertas } from "./_components/alertas";
@@ -80,6 +91,24 @@ const PILL: Record<EstadoConexao, { rotulo: string; classe: string }> = {
 };
 
 export default async function IntegracoesPage() {
+  const sessao = await lerSessao();
+  if (!sessao) redirect("/login");
+
+  // A matriz nega `integracoes` ao operador. Negado EXPLICITO, como em Lotes:
+  // redirecionar em silencio pareceria link quebrado.
+  if (!temPermissao(sessao.papel, "integracoes", "ler")) {
+    return (
+      <div className="flex flex-col items-start gap-2 rounded-card border border-border bg-card shadow-(--shadow-card) px-6 py-10">
+        <h1 className="font-display text-[18px] font-bold text-navy">Integrações e APIs</h1>
+        <p className="max-w-prose text-[13px] text-ink-2">Esta tela não faz parte do seu acesso.</p>
+      </div>
+    );
+  }
+
+  // Decidido no servidor: o botao nem chega ao HTML de quem nao pode. A rota
+  // `/iniciar` confere de novo — esconder botao nunca e a protecao.
+  const podeConectar = temPermissao(sessao.papel, "integracoes", "atualizar");
+
   const estado = await lerEstadoIntegracoes();
   const porCanal = new Map(estado.conexoes.map((c) => [c.canal, c]));
   const { fila } = estado;
@@ -103,7 +132,7 @@ export default async function IntegracoesPage() {
           return (
             <section
               key={card.titulo}
-              className="flex flex-col gap-2.5 rounded-card border border-border bg-card p-5"
+              className="flex flex-col gap-2.5 rounded-card border border-border bg-card shadow-(--shadow-card) p-5"
             >
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display text-[15px] font-bold text-navy">{card.titulo}</h2>
@@ -129,6 +158,33 @@ export default async function IntegracoesPage() {
                 )}
               </p>
 
+              {/* Suspense: com o ML lento, o /users/me leva ate ~45s (3 tentativas
+                  de 15s). So esta linha espera, o resto da tela ja aparece. */}
+              {card.canal === "mercado_livre" && conexao && conexao.estado !== "nao_configurado" && (
+                <Suspense fallback={<p className="text-xs text-ink-2">Consultando a conta no Mercado Livre…</p>}>
+                  <UsuarioConectado />
+                </Suspense>
+              )}
+
+              {/* `<a>` e nao `<Link>`: o Link pre-carrega o destino, e aqui o
+                  destino e uma rota que inicia o OAuth e grava cookie. */}
+              {card.canal === "mercado_livre" && podeConectar && (
+                // Conectado, o botao fica discreto: reconectar troca a conta do
+                // painel inteiro, nao e acao para clique por engano.
+                <a
+                  href="/api/integracoes/oauth/mercado-livre/iniciar"
+                  className={`self-start rounded-button px-4 py-2 text-[13px] font-medium foco ${
+                    conexao?.estado === "conectado" || conexao?.estado === "vencendo"
+                      ? "border border-border text-ink-2"
+                      : "bg-navy text-white"
+                  }`}
+                >
+                  {conexao && conexao.estado !== "nao_configurado"
+                    ? "Reconectar Mercado Livre"
+                    : "Conectar Mercado Livre"}
+                </a>
+              )}
+
               <ul className="flex flex-col gap-1 text-xs text-ink">
                 {card.capacidades.map((c) => (
                   <li key={c}>✓ {c}</li>
@@ -141,7 +197,7 @@ export default async function IntegracoesPage() {
         {CARDS_PENDENTES.map((card) => (
           <section
             key={card.titulo}
-            className="flex flex-col gap-2.5 rounded-card border border-border bg-card p-5"
+            className="flex flex-col gap-2.5 rounded-card border border-border bg-card shadow-(--shadow-card) p-5"
           >
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-display text-[15px] font-bold text-navy">{card.titulo}</h2>
@@ -158,7 +214,7 @@ export default async function IntegracoesPage() {
           integracao. Fica no fim porque e diagnostico, nao o assunto da tela. */}
       <section
         aria-label="Fila e conferência"
-        className="flex flex-col gap-3 rounded-card border border-border bg-card p-5"
+        className="flex flex-col gap-3 rounded-card border border-border bg-card shadow-(--shadow-card) p-5"
       >
         <h2 className="font-display text-[15px] font-bold text-navy">Fila e conferência</h2>
 
@@ -185,6 +241,42 @@ export default async function IntegracoesPage() {
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * Quem o token representa, lido no ML agora (`/users/me`), nao do banco.
+ *
+ * E a prova de que a conexao funciona: a pill so diz que ha credencial. Falha
+ * aqui nao derruba a tela, vira uma linha dizendo o que fazer.
+ */
+async function UsuarioConectado() {
+  // A busca fica no try e o JSX fora: try/catch nao pega erro de render.
+  const resultado = await lerUsuarioML().then(
+    (usuario) => ({ usuario }),
+    (erro: unknown) => {
+      console.error("[integracoes] /users/me falhou:", erro);
+      return { erro };
+    },
+  );
+
+  if ("erro" in resultado) {
+    return (
+      <p className="text-xs text-danger">
+        {resultado.erro instanceof ReautorizacaoNecessariaError
+          ? "O Mercado Livre recusou a renovação do acesso. É preciso autorizar o aplicativo de novo."
+          : "Não foi possível consultar a conta no Mercado Livre agora."}
+      </p>
+    );
+  }
+
+  const { usuario } = resultado;
+  return (
+    <p className="text-xs text-ink">
+      Conectado como <span className="font-medium">{usuario.nickname}</span> · ID {usuario.id} ·{" "}
+      {usuario.siteId}
+      {usuario.emUserProducts && " · publica no modelo User Products"}
+    </p>
   );
 }
 

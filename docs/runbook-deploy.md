@@ -94,6 +94,9 @@ BETTER_AUTH_SECRET=<openssl rand -base64 32>
 BETTER_AUTH_URL=https://painel.seu-dominio.com.br
 WEBHOOK_SECRET=<openssl rand -hex 32>
 CREDENCIAIS_KEY=<openssl rand -hex 32>
+ML_CLIENT_ID=<do app no DevCenter do ML>
+ML_CLIENT_SECRET=<do app no DevCenter do ML>
+ML_REDIRECT_URI=https://painel.seu-dominio.com.br/api/integracoes/oauth/mercado-livre/callback
 MINIO_ENDPOINT=http://minio:9000
 MINIO_PUBLIC_URL=https://fotos.seu-dominio.com.br
 MINIO_ACCESS_KEY=
@@ -219,8 +222,10 @@ Equipe. O site publico contratado nao tem uma linha.
 **Responder pergunta nao existe.** Os botoes sao inertes por construcao, e o SLA
 de 4h so acende cor para quem estiver com a aba aberta — nao ha job de alerta.
 
-**Sem credencial de ML/OLX** as integracoes nao saem do lugar; conectar o ML so
-e possivel digitando a URL do OAuth a mao, com o segredo na query string.
+**Sem credencial de ML/OLX** as integracoes nao saem do lugar. O ML se conecta
+pelo botao "Conectar Mercado Livre" da tela Integracoes (so administrador),
+depois que o app for criado no DevCenter e as variaveis `ML_*` estiverem
+definidas.
 
 **A sidebar afirma que os canais estao conectados.** "Mercado Livre · ativo" e
 "OLX · ativo" sao texto cravado, em verde, em todas as telas — enquanto
@@ -230,8 +235,6 @@ e possivel digitando a URL do OAuth a mao, com o segredo na query string.
 - `/api/fotos` (4 handlers) grava no storage sem conferir sessao. Mitigacao de
   borda enquanto nao se corrige: **Basic Auth do EasyPanel** no dominio do
   painel.
-- `/oauth/.../iniciar` protegida so pelo segredo na URL: quem ler um log de
-  acesso substitui a conta do ML do cliente pela propria.
 - **Backup nao existe.** O `pg_dump` do modelo antigo saiu junto com o deploy
   por SSH e ainda nao foi refeito para o Postgres do EasyPanel. E a regra de DR
   exige mais que dump: **restore testado**. Backup nunca restaurado nao e

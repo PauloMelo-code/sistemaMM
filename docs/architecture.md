@@ -248,7 +248,7 @@ Duas rotas, usadas **uma vez** por ambiente, no navegador:
 
 | Rota | Passo |
 |---|---|
-| `GET /api/integracoes/oauth/mercado-livre/iniciar?t=$WEBHOOK_SECRET` | manda o Anderson para a tela de autorizacao do ML |
+| `GET /api/integracoes/oauth/mercado-livre/iniciar` | so administrador (botao "Conectar" da tela Integracoes); manda para a tela de autorizacao do ML |
 | `GET /api/integracoes/oauth/mercado-livre/callback` | a volta do ML; troca o `code` por token e grava cifrado |
 
 O `callback` e o `redirect_uri` cadastrado no portal do ML, entao precisa ser
@@ -263,11 +263,13 @@ vale 10 minutos, e de **uso unico** e some assim que serve; o fluxo tambem usa
 PKCE. Quando a conferencia falha, a resposta nao diz **qual** parte falhou: para
 quem ataca, tudo e "invalido".
 
-**Por que o `iniciar` pede segredo e o `callback` nao.** Nao ha autenticacao no
-sistema (known-issues 🔴). Sem porteiro no `iniciar`, qualquer um dispararia o
-fluxo e conectaria a propria conta — e como o indice unico so admite **uma
-credencial ativa por canal**, a dele substituiria a da MM. Quando o login
-existir, o `iniciar` vira "so administrador" e o segredo sai da URL.
+**Por que o `iniciar` exige administrador e o `callback` nao.** Sem porteiro no
+`iniciar`, qualquer um dispararia o fluxo e conectaria a propria conta. Como o
+indice unico so admite **uma credencial ativa por canal**, a dele substituiria a
+da MM. O `iniciar` confere `lerSessao()` + `temPermissao`. O `callback` nao
+precisa: so aceita a volta que traz o cookie de estado cifrado, e esse cookie so
+existe no navegador de quem passou pelo `iniciar`. Ate 2026-10-29 o porteiro era
+um segredo `?t=` na URL, do tempo em que nao havia login.
 
 **O token nunca fica em texto claro.** `src/lib/integracoes/cofre.ts` cifra em
 AES-256-GCM (stdlib, sem dependencia) antes de gravar em

@@ -14,6 +14,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { chamarML } from "@/lib/integracoes/mercado-livre/client";
 import { MAX_TENTATIVAS } from "@/lib/integracoes/retentativa";
 import type { Canal } from "@/lib/pricing";
 
@@ -70,7 +71,40 @@ export const MARGEM_VENCENDO_S = 3600;
  */
 export const LIMITE_OBSOLESCENCIA_S = 90 * 60;
 
-export async function lerEstadoIntegracoes(): Promise<EstadoIntegracoes> {
+/** Quem esta do outro lado do token — so o que a tela mostra. */
+export interface UsuarioML {
+  id: number;
+  nickname: string;
+  siteId: string;
+  /** Tag `user_product_seller`: a conta publica com `family_name`, nao `title`. */
+  emUserProducts: boolean;
+}
+
+/**
+ * `GET /users/me` — a prova de que o token funciona, nao so de que existe.
+ *
+ * So leitura. Passa pelo `chamarML`, entao um token perto de vencer e renovado
+ * aqui mesmo. Lanca `SemCredencialError`/`ReautorizacaoNecessariaError`/`ErroML`;
+ * quem chama decide o que mostrar. E-mail e dados pessoais nao saem daqui.
+ */
+export async function lerUsuarioML(): Promise<UsuarioML> {
+  const dados = await chamarML<{ id: number; nickname: string; site_id: string; tags?: string[] }>(
+    "/users/me",
+  );
+  return {
+    id: dados.id,
+    nickname: dados.nickname,
+    siteId: dados.site_id,
+    emUserProducts: dados.tags?.includes("user_product_seller") ?? false,
+  };
+}
+
+/**
+ * So o estado das conexoes — uma consulta. Separada do resto para o shell do
+ * painel (sidebar) nao pagar as consultas de fila e conferencia em toda
+ * navegacao.
+ */
+export async function lerConexoes(): Promise<Conexao[]> {
   const credenciais = await db.execute<{
     canal: Canal;
     conta: string | null;
@@ -85,7 +119,7 @@ export async function lerEstadoIntegracoes(): Promise<EstadoIntegracoes> {
   const porCanal = new Map(credenciais.rows.map((l) => [l.canal, l]));
   const canais: Canal[] = ["mercado_livre", "olx", "whatsapp"];
 
-  const conexoes: Conexao[] = canais.map((canal) => {
+  return canais.map((canal): Conexao => {
     const linha = porCanal.get(canal);
     if (!linha) {
       return { canal, estado: "nao_configurado", segundosAteVencer: null, contaExterna: null };
@@ -99,6 +133,10 @@ export async function lerEstadoIntegracoes(): Promise<EstadoIntegracoes> {
       contaExterna: linha.conta,
     };
   });
+}
+
+export async function lerEstadoIntegracoes(): Promise<EstadoIntegracoes> {
+  const conexoes = await lerConexoes();
 
   const [eventos] = (
     await db.execute<{ pendentes: number; esgotados: number }>(sql`

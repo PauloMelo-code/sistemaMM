@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     return pagina(
       "Fluxo expirado ou invalido",
       "O cookie de estado nao existe mais (passou de 10 minutos, ou o navegador e outro). " +
-        "Comece de novo pela rota /iniciar.",
+        "Comece de novo pelo botao Conectar na tela Integracoes.",
       400,
     );
   }
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     console.error("[oauth-ml] state divergente ou expirado — recusando o retorno");
     return pagina(
       "Autorizacao recusada",
-      "O parametro de seguranca nao confere. Comece de novo pela rota /iniciar.",
+      "O parametro de seguranca nao confere. Comece de novo pelo botao Conectar na tela Integracoes.",
       400,
     );
   }
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     const resposta = pagina(
       "Mercado Livre conectado",
       `Conta ${dados.user_id ?? "(sem id)"} autorizada. O token foi gravado cifrado e sera ` +
-        "renovado sozinho. Pode fechar esta pagina.",
+        "renovado sozinho. Volte para a tela Integracoes do painel.",
       200,
     );
     // O estado e de uso unico: some assim que serve.
