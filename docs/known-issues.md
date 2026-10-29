@@ -431,6 +431,32 @@ venda.
   envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
   elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
 
+### 🟡 Importacao dos anuncios do ML — etapa 1 pronta, vinculo pendente (RN-123)
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/{item-ml,importacao-anuncios}.ts`,
+  `src/lib/actions/importacao-ml.ts`, `src/app/(painel)/integracoes/mercado-livre/page.tsx`,
+  tabela `integracoes_ml_anuncios` (migracao `0012`)
+- **Situacao (2026-10-29):** o botao "Importar agora" traz da conta, so com GET,
+  titulo, SKU, preco, quantidade disponivel e vendida, status, tipo, descricao e
+  os links das fotos. Tudo fica fora do Estoque.
+- **⚠️ Escrito a partir da documentacao, nao de uma resposta real.** Conferir na
+  primeira importacao:
+  - se o total bate com o do painel do ML. A busca `search_type=scan` vai sem
+    filtro de status, e a doc nao diz se assim traz pausados e encerrados;
+  - se o `/items/bulk` respondeu no formato esperado (`status_code` + `body`).
+    Se nao, a importacao falha inteira e nada e gravado.
+- **Fica para a etapa 2:**
+  - o vinculo anuncio → item, informando lote e custo, com bloqueio para SKU
+    duplicado;
+  - a copia das fotos para o MinIO;
+  - a importacao automatica (hoje so pelo botao).
+- **Nao usa `integracoes_sincronizacoes` de proposito:** a tela Integracoes da
+  alerta "urgente" para sincronizacao parada ha mais de 90 min, e a importacao
+  manual acenderia esse alerta depois de cada clique. A "ultima importacao" sai
+  de `max(sincronizado_em)` da propria tabela.
+- **Antes de usar em PRD:** `npm run db:migrate` (migracao `0012`, so cria a
+  tabela) e novo deploy, que tambem libera as fotos `*.mlstatic.com` no
+  `next.config.ts`.
+
 ### 🟢 Spec "Sistema de Anuncios" pede Prisma; o projeto usa Drizzle (intencional)
 - **Modulo:** Integracoes (Mercado Livre)
 - **Situacao (2026-10-29):** a especificacao externa do sistema de anuncios do

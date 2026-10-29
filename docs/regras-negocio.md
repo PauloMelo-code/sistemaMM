@@ -371,3 +371,29 @@ Cada regra segue este formato:
     Correcao se faz pelo pedido.
 - **Impacto se descumprida**: a mais cara e a do anuncio — o painel diz que o
   item nao existe e o comprador continua conseguindo compra-lo.
+
+### RN-123
+**Importar os anuncios do Mercado Livre e so leitura, e anuncio importado nao vira item sem lote e custo.**
+
+- **Definida por**: Paulo
+- **Data**: 2026-10-29
+- **Modulo**: Integracoes (Mercado Livre)
+- **Contexto**: a conta da MM ja tem anuncios no ML que o painel nao conhece. O
+  ML nao sabe de lote nem de custo de arremate, e um item sem custo quebra a
+  RN-121.
+- **A regra**:
+  - A importacao faz **so GET** na API do ML. Nao pausa, nao edita e nao
+    encerra nada na conta.
+  - O que vem do ML fica em `integracoes_ml_anuncios`, **fora do Estoque**.
+    Reimportar atualiza a linha do mesmo anuncio (chave: o id `MLB...`), nunca
+    duplica.
+  - Quantidade disponivel e vendida sao **registradas**, nao viram itens. Quantos
+    itens um anuncio representa decide quem faz o vinculo (etapa 2).
+  - As fotos ficam como **links do ML** ate o vinculo. So ai sao copiadas para o
+    storage proprio.
+  - **SKU duplicado entre anuncios e sinalizado** na tela, e bloqueia o vinculo
+    ate um humano resolver. A conta ja tem `LEILAO-011` em dois produtos
+    diferentes.
+- **Impacto se descumprida**: escrever na conta durante uma importacao pode
+  pausar ou alterar anuncio com venda; criar item sem custo derruba margem e
+  lance maximo (RN-100).

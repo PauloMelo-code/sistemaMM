@@ -12,12 +12,14 @@
  *
  * Server component: le o estado e nao expoe token nenhum, so "vence em".
  */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { temPermissao } from "@/lib/auth/rbac";
 import { lerSessao } from "@/lib/auth/sessao";
 import {
+  contarAnunciosImportados,
   lerEstadoIntegracoes,
   lerUsuarioML,
   type Conexao,
@@ -109,7 +111,10 @@ export default async function IntegracoesPage() {
   // `/iniciar` confere de novo — esconder botao nunca e a protecao.
   const podeConectar = temPermissao(sessao.papel, "integracoes", "atualizar");
 
-  const estado = await lerEstadoIntegracoes();
+  const [estado, importados] = await Promise.all([
+    lerEstadoIntegracoes(),
+    contarAnunciosImportados(),
+  ]);
   const porCanal = new Map(estado.conexoes.map((c) => [c.canal, c]));
   const { fila } = estado;
 
@@ -183,6 +188,17 @@ export default async function IntegracoesPage() {
                     ? "Reconectar Mercado Livre"
                     : "Conectar Mercado Livre"}
                 </a>
+              )}
+
+              {card.canal === "mercado_livre" && conexao && conexao.estado !== "nao_configurado" && (
+                <Link
+                  href="/integracoes/mercado-livre"
+                  className="self-start text-[13px] font-medium text-navy underline-offset-2 hover:underline foco"
+                >
+                  {importados > 0
+                    ? `Ver anúncios importados (${importados}) →`
+                    : "Importar anúncios da conta →"}
+                </Link>
               )}
 
               <ul className="flex flex-col gap-1 text-xs text-ink">

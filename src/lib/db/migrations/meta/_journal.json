@@ -85,6 +85,13 @@
       "when": 1786465527406,
       "tag": "0011_wealthy_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793317782239,
+      "tag": "0012_first_scarecrow",
+      "breakpoints": true
     }
   ]
 }

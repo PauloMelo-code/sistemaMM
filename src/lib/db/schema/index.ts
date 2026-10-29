@@ -22,3 +22,4 @@ export * from "./integracoes-eventos";
 export * from "./integracoes-credenciais";
 export * from "./integracoes-tarefas";
 export * from "./integracoes-sincronizacoes";
+export * from "./integracoes-ml-anuncios";

@@ -46,7 +46,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   images: {
-    remotePatterns: hostDasFotos(),
+    remotePatterns: [
+      ...hostDasFotos(),
+      // Fotos dos anuncios importados do ML, mostradas direto do CDN deles ate
+      // o vinculo copiar para o MinIO (RN-123). Fixo: e dominio do ML, nao
+      // muda por ambiente.
+      { protocol: "https", hostname: "*.mlstatic.com", pathname: "/**" },
+    ],
   },
   turbopack: {
     // Raiz explicita. Sem isso o Turbopack sobe a arvore procurando lockfile,
