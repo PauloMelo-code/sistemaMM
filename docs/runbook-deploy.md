@@ -180,14 +180,30 @@ Sem isto **a fila nunca drena**: a venda chega do ML, entra em
 nao baixa do estoque e o anuncio da OLX continua no ar. Toda a RN-104 deixa de
 acontecer, com o codigo dela pronto e testado.
 
-Enquanto o ADR do Lucas nao fecha, um cron do EasyPanel destrava:
+Esta instalacao do EasyPanel nao tem cron por servico. Quem agenda e um
+**segundo servico** (`workermm`), da MESMA imagem do painel, mudando so o
+comando (`scripts/agendador.mjs`). Ele chama o worker a cada minuto e a
+reconciliacao a cada 15 minutos; a reconciliacao tambem mantem o token do ML
+renovado.
 
-```
-* * * * *    curl -fsS -X POST "http://mm-solucoes:3000/api/integracoes/worker?t=$WEBHOOK_SECRET"
-*/15 * * * * curl -fsS -X POST "http://mm-solucoes:3000/api/integracoes/reconciliar?t=$WEBHOOK_SECRET"
-```
+No servico do agendador:
 
-Pela rede interna, para o segredo nao atravessar a internet numa query string.
+| Campo | Valor |
+|---|---|
+| Comando de inicio | `node scripts/agendador.mjs` |
+| `SERVICO` | `agendador`. Sem isto o healthcheck da imagem procura o painel, nao acha e reinicia o servico a cada ~2 min |
+| `APP_URL` | o endereco **interno** do painel, ex.: `http://sistema_sistemamm:3000` |
+| `WEBHOOK_SECRET` | o MESMO valor do painel |
+
+Use a rede interna no `APP_URL`. O segredo vai na query string, e pelo
+endereco publico ele atravessaria a internet a cada minuto.
+
+**Conferir:** o log do servico comeca com
+`[agendador] worker a cada 60s, reconciliacao a cada 15min`. Em ate 15 minutos,
+a tela Integracoes deixa de dizer que a conferencia nunca rodou.
+
+⚠️ Sem o comando de inicio trocado, o servico sobe uma **segunda copia do
+painel**: fica verde e nao drena nada.
 
 ---
 

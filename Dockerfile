@@ -111,7 +111,14 @@ EXPOSE 3000
 
 # Healthcheck do proprio container: app que sobe e morre em 2 segundos deixa de
 # parecer saudavel. `/api/saude` responde sem sessao e consulta o banco.
+#
+# DOIS SERVICOS, UMA IMAGEM. Com `SERVICO=agendador` (o `workermm`, comando
+# `node scripts/agendador.mjs`) nao ha pagina para consultar, e o teste daria
+# falso "doente" — o EasyPanel reiniciaria o agendador a cada ~2 min, no meio de
+# uma passada. Ali o teste e o proprio processo: o agendador encerra se faltar
+# configuracao, e o container cai junto. A porta vem de `PORT`, e nao fixa: com
+# `PORT` trocado no servico, o teste batia na 3000 vazia e reiniciava o painel.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "if(process.env.SERVICO==='agendador')process.exit(0);fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
