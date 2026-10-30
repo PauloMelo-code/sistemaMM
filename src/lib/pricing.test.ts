@@ -23,6 +23,7 @@ import {
   lanceMaximo,
   resultadoDaVenda,
   custoNaVenda,
+  ratearCustoDoLote,
   margemDoAnuncio,
   MARGEM_SAUDAVEL,
   formatarBRL,
@@ -421,4 +422,48 @@ test("custoNaVenda: quantidade ou custo invalidos recusam (null), nunca zero", (
   assert.equal(custoNaVenda("3300.00", 1.5), null);
   assert.equal(custoNaVenda("abc", 1), null);
   assert.equal(custoNaVenda("-1", 1), null);
+});
+
+// -- rateio do custo do lote (RN-124) ----------------------------------------
+
+test("ratearCustoDoLote: proporcional a preco x unidades, e fecha o total", () => {
+  // soma = 100*2 + 300*1 = 500 -> unitarios 200 e 600 -> 200*2 + 600 = 1000
+  assert.deepEqual(
+    ratearCustoDoLote("1000.00", [
+      { preco: 100, unidades: 2 },
+      { preco: 300, unidades: 1 },
+    ]),
+    ["200.00", "600.00"],
+  );
+});
+
+test("ratearCustoDoLote: unidade ja vendida tambem entra no peso", () => {
+  // o lote pagou pelas 4 (1 disponivel + 3 vendidas): 400 / 4 = 100 cada
+  assert.deepEqual(ratearCustoDoLote("400", [{ preco: 50, unidades: 4 }]), ["100.00"]);
+});
+
+test("ratearCustoDoLote: item barato num lote caro nao vira custo zero (RN-121)", () => {
+  const r = ratearCustoDoLote("0.10", [
+    { preco: 1, unidades: 1 },
+    { preco: 100000, unidades: 1 },
+  ]);
+  assert.ok(r);
+  assert.equal(r[0], "0.01");
+});
+
+test("ratearCustoDoLote: lote todo zerado rateia como se cada linha tivesse uma unidade", () => {
+  assert.deepEqual(
+    ratearCustoDoLote("300", [
+      { preco: 100, unidades: 0 },
+      { preco: 200, unidades: 0 },
+    ]),
+    ["100.00", "200.00"],
+  );
+});
+
+test("ratearCustoDoLote: entrada invalida recusa (null)", () => {
+  assert.equal(ratearCustoDoLote("0", [{ preco: 1, unidades: 1 }]), null);
+  assert.equal(ratearCustoDoLote("100", []), null);
+  assert.equal(ratearCustoDoLote("100", [{ preco: 0, unidades: 1 }]), null);
+  assert.equal(ratearCustoDoLote("100", [{ preco: 10, unidades: -1 }]), null);
 });

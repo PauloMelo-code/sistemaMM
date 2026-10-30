@@ -409,9 +409,49 @@ Cada regra segue este formato:
     itens um anuncio representa decide quem faz o vinculo (etapa 2).
   - As fotos ficam como **links do ML** ate o vinculo. So ai sao copiadas para o
     storage proprio.
-  - **SKU duplicado entre anuncios e sinalizado** na tela, e bloqueia o vinculo
-    ate um humano resolver. A conta ja tem `LEILAO-011` em dois produtos
-    diferentes.
+  - **SKU duplicado entre anuncios e sinalizado** na tela. A conta ja tem
+    `LEILAO-011` em dois produtos diferentes. (Revisto em 2026-10-29: no
+    vinculo, o duplicado ganha sufixo em vez de bloquear — ver RN-124.)
 - **Impacto se descumprida**: escrever na conta durante uma importacao pode
   pausar ou alterar anuncio com venda; criar item sem custo derruba margem e
   lance maximo (RN-100).
+
+### RN-124
+**Anuncio do ML vira item do Estoque por lote, com custo rateado.**
+
+- **Definida por**: Paulo
+- **Data**: 2026-10-29
+- **Modulo**: Integracoes (Mercado Livre), Estoque, Lotes, Anuncios
+- **Contexto**: os 67 anuncios importados (RN-123) nao tem lote nem custo, e
+  todo item precisa dos dois (RN-121). O SKU da conta ja carrega o leilao de
+  origem no prefixo: `LEILAO-009`, `L3-001`, `U-009`, `G-018`, `F-008`.
+- **A regra**:
+  - **Lote = prefixo do SKU** (o texto antes do primeiro `-`). Anuncio sem SKU
+    vai para o lote `SEM-SKU`. Quem vincula da nome, segmento, data de arremate
+    e **custo total** a cada lote; a data sugerida e a do anuncio mais antigo.
+  - **Rateio do custo**: o custo total do lote e dividido na proporcao do preco
+    de anuncio x unidades (disponiveis + ja vendidas, porque o lote pagou por
+    todas). Custo unitario = custo total x preco / soma(preco x unidades). A
+    conta mora em `pricing.ts` (`ratearCustoDoLote`), em centavos, com minimo de
+    R$ 0,01 por unidade (RN-121 recusa custo zero).
+  - **Quantidade do item = unidades disponiveis no ML**. Disponivel 0 vira item
+    `vendido` com quantidade 0; ativo vira `anunciado`; pausado, inativo ou
+    encerrado vira `pausado`.
+  - **SKU repetido** (na conta ou ja no Estoque) ganha sufixo: o primeiro, na
+    ordem do id do anuncio, fica com o SKU; os seguintes viram `-B`, `-C`...
+    Anuncio sem SKU vira `ML-<id do anuncio>`.
+  - **O anuncio do canal** (`anuncios`) nasce com o id `MLB...`, o preco e o
+    status (`no_ar` se ativo, `pausado` se nao). As perguntas daquele anuncio
+    ganham o item.
+  - **Venda anterior a importacao nao baixa estoque.** A quantidade disponivel
+    do ML ja desconta essas vendas. O anuncio guarda `contado_ate` (o instante da
+    importacao usada no vinculo); venda com data ate esse instante e registrada
+    como pedido, sem baixa e sem pausar nada.
+  - **Fotos** sao copiadas para o storage proprio depois do vinculo, em passo
+    separado: chamada de rede nao entra na transacao do vinculo.
+- **⚠️ Efeito colateral**: a partir do vinculo a RN-104 vale para estes itens.
+  Venda em outro canal **pausa o anuncio no ML** — a primeira escrita do sistema
+  na conta.
+- **Impacto se descumprida**: venda antiga baixando estoque de novo zera itens
+  que ainda existem; rateio fora de `pricing.ts` vira segunda copia da regra de
+  dinheiro (RN-100).

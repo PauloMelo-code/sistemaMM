@@ -431,6 +431,31 @@ venda.
   envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
   elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
 
+### 🟡 Vinculo anuncio do ML -> Estoque (RN-124) — pronto, com ressalvas (2026-10-29)
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/vinculo.ts` (plano, puro),
+  `src/lib/pricing.ts` (`ratearCustoDoLote`), `src/lib/actions/vinculo-ml.ts`,
+  `/integracoes/mercado-livre/vincular`, migracao `0015` (`anuncios.contado_ate`).
+- **Provado de ponta a ponta** com servidor de producao local e banco
+  descartavel, 4 anuncios de exemplo:
+  - 3 lotes e o custo rateado certo;
+  - o SKU repetido virou `-B`; o anuncio sem SKU virou `ML-<id>`;
+  - quantidade e situacao como na RN-124;
+  - o marco `contado_ate` gravado, a pergunta vinculada ao item e a trilha;
+  - o Estoque mostra tudo.
+- **NAO verificado:**
+  - **A copia das fotos.** Nao havia MinIO local, e as fotos reais do ML podem
+    ser recusadas pela validacao de tamanho (`LADO_MINIMO`). A tela mostra
+    quantas foram recusadas.
+  - **O desvio da venda anterior a importacao** (`contado_ate`) no
+    `handler-venda.ts`. Foi verificado lendo o codigo, sem teste automatizado:
+    o handler depende de banco e da API do ML.
+- **Depois do vinculo a RN-104 escreve no ML:** venda em outro canal pausa o
+  anuncio la. A tela avisa no modal de confirmacao.
+- **Reimportar depois do vinculo nao muda a quantidade do item.** O Estoque
+  passa a ser a fonte; reimportar so atualiza a "foto" do anuncio.
+- **O rateio por preco de anuncio e regra nova** e precisa da confirmacao do
+  Anderson. Se ele quiser outro criterio, muda so `ratearCustoDoLote`.
+
 ### 🟡 Item com quantidade (ADR-0002) — o que ficou de fora (2026-10-29)
 - **Arquivo(s):** migracao `0014`, `handler-venda.ts`, `pricing.ts`
   (`custoNaVenda`), telas Estoque e Lotes.

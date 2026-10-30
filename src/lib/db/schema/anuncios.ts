@@ -45,6 +45,14 @@ export const anuncios = pgTable(
     preco: numeric("preco", { precision: 14, scale: 2 }).notNull(),
     status: statusAnuncioEnum("status").notNull().default("no_ar"),
     visitas: integer("visitas").notNull().default(0),
+    /**
+     * Ate quando as vendas do canal ja estao descontadas de `itens.quantidade`
+     * (RN-124). No vinculo com um anuncio importado do ML, e o instante da
+     * importacao: a quantidade disponivel veio do ML ja sem essas vendas. Venda
+     * com data ate aqui vira pedido SEM baixa — senao baixaria duas vezes.
+     * Nulo = toda venda baixa (anuncio criado pelo painel).
+     */
+    contado_ate: timestamp("contado_ate"),
 
     // --- colunas de auditoria OBRIGATORIAS (nunca omitir) ---
     created_at: timestamp("created_at").notNull().defaultNow(),

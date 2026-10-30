@@ -329,6 +329,44 @@ export function resultadoDaVenda({
  * errado ficaria gravado para sempre no mes fechado. `null` para entrada que
  * nao forma dinheiro — quem chama recusa a venda em vez de gravar zero.
  */
+export interface LinhaRateio {
+  /** Preco de anuncio por unidade. E o peso do rateio. */
+  preco: number;
+  /** Unidades que o lote pagou: disponiveis + ja vendidas. */
+  unidades: number;
+}
+
+/**
+ * Rateia o custo total de um lote entre os itens (RN-124): custo unitario =
+ * total x preco / soma(preco x unidades). Devolve um custo UNITARIO por linha,
+ * como texto `numeric`, na mesma ordem.
+ *
+ * Em centavos, pelo mesmo motivo de `custoNaVenda`. O arredondamento por linha
+ * pode deixar a soma alguns centavos longe do total — aceito: o total do lote
+ * continua gravado no lote, e o centavo nao muda margem nenhuma.
+ *
+ * Minimo de R$ 0,01 por unidade: a RN-121 recusa custo zero, e um item barato
+ * num lote caro pode arredondar para nada. Lote em que ninguem tem unidade (tudo
+ * zerado) rateia como se cada linha tivesse uma. `null` para entrada invalida.
+ */
+export function ratearCustoDoLote(custoTotal: string, linhas: LinhaRateio[]): string[] | null {
+  const total = Number(custoTotal);
+  if (!valorValido(total) || total === 0 || linhas.length === 0) return null;
+  if (linhas.some((l) => !valorValido(l.preco) || l.preco === 0 || !Number.isInteger(l.unidades) || l.unidades < 0)) {
+    return null;
+  }
+
+  const centavosTotal = Math.round(total * 100);
+  const peso = (l: LinhaRateio, todasZeradas: boolean) => l.preco * (todasZeradas ? 1 : l.unidades);
+  const zeradas = linhas.every((l) => l.unidades === 0);
+  const soma = linhas.reduce((s, l) => s + peso(l, zeradas), 0);
+
+  return linhas.map((l) => {
+    const centavos = Math.max(1, Math.round((centavosTotal * l.preco) / soma));
+    return (centavos / 100).toFixed(2);
+  });
+}
+
 export function custoNaVenda(custoUnitario: string, quantidade: number): string | null {
   const reais = Number(custoUnitario);
   if (!valorValido(reais) || !Number.isInteger(quantidade) || quantidade < 1) return null;

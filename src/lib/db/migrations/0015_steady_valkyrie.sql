@@ -1,0 +1,1 @@
+ALTER TABLE "anuncios" ADD COLUMN "contado_ate" timestamp;

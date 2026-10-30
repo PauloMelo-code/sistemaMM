@@ -70,7 +70,7 @@ const FRETE_SAIDA_ATE_DEFINIR = 0;
 /** Onde o item foi parar: e o que decide se ha venda a registrar. */
 async function localizarItem(idAnuncio: string) {
   const [achado] = await db
-    .select({ itemId: anuncios.item_id, anuncioId: anuncios.id })
+    .select({ itemId: anuncios.item_id, anuncioId: anuncios.id, contadoAte: anuncios.contado_ate })
     .from(anuncios)
     .where(
       and(
@@ -133,9 +133,14 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
         .where(and(eq(pedidos.canal, "mercado_livre"), eq(pedidos.numero, pedido.numero)));
       if (jaExiste) return "ja_registrada" as const;
 
+      // RN-124: venda ANTERIOR a importacao que gerou este item. A quantidade
+      // veio do ML ja sem ela — baixar de novo tiraria unidade que existe.
+      // Vira pedido (historico, relatorio do mes), sem baixa e sem pausar nada.
+      const jaContada = local.contadoAte !== null && pedido.vendidoEm <= local.contadoAte;
+
       // RN-112, camada 2: com a linha travada, a conta e exata. Faltando
       // unidade, outra venda chegou antes — e nao ha o que dar baixa.
-      if (item.quantidade < pedido.quantidade) {
+      if (!jaContada && item.quantidade < pedido.quantidade) {
         throw new VendaIgnorada(
           `Estoque insuficiente para o pedido ${pedido.numero}: pediu ${pedido.quantidade}, ` +
             `restam ${item.quantidade}. Venda concorrente — decisao COMERCIAL: cancelar no ` +
@@ -171,6 +176,8 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
           modified_by: USUARIO_SISTEMA_ID,
         })
         .returning({ id: pedidos.id });
+
+      if (jaContada) return "registrada" as const;
 
       // RN-112, camada 1: a baixa e `quantidade - N` NO BANCO, nao o numero
       // calculado acima. Se algo furou a trava da linha, o resultado negativo

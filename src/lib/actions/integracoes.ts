@@ -11,10 +11,11 @@
  *
  * NUNCA devolve token, nem pedaco dele. So se ha credencial e quando vence.
  */
-import { asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { integracoesMlAnuncios } from "@/lib/db/schema/integracoes-ml-anuncios";
+import type { AnuncioParaVinculo } from "@/lib/integracoes/mercado-livre/vinculo";
 import { chamarML } from "@/lib/integracoes/mercado-livre/client";
 import { MAX_TENTATIVAS } from "@/lib/integracoes/retentativa";
 import type { Canal } from "@/lib/pricing";
@@ -134,6 +135,29 @@ export async function lerAnunciosImportados(): Promise<{
   });
 
   return { anuncios, ultimaImportacao };
+}
+
+/**
+ * Anuncios importados que ainda nao tem item (RN-124), no formato do plano do
+ * vinculo. A tela de vinculo resume por lote; a action recalcula tudo do zero
+ * no servidor, sem confiar no que a tela mandou.
+ */
+export async function lerParaVincular(): Promise<AnuncioParaVinculo[]> {
+  const linhas = await db
+    .select()
+    .from(integracoesMlAnuncios)
+    .where(and(eq(integracoesMlAnuncios.is_deleted, false), isNull(integracoesMlAnuncios.item_id)));
+
+  return linhas.map((l) => ({
+    idExterno: l.id_externo,
+    titulo: l.titulo,
+    sku: l.sku ?? l.campo_vendedor,
+    status: l.status,
+    preco: Number(l.preco),
+    qtdDisponivel: l.qtd_disponivel,
+    qtdVendida: l.qtd_vendida,
+    criadoNoMl: l.criado_no_ml,
+  }));
 }
 
 /** So o total, para o link do card na tela Integracoes. */

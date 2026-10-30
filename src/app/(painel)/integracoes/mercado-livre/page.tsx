@@ -53,7 +53,10 @@ export default async function AnunciosImportadosPage() {
 
   const podeImportar = temPermissao(sessao.papel, "integracoes", "atualizar");
   const { anuncios, ultimaImportacao } = await lerAnunciosImportados();
-  const duplicados = anuncios.filter((a) => a.skuDuplicado).length;
+  const duplicados = anuncios.filter((a) => a.skuDuplicado && !a.vinculado).length;
+  const semVinculo = anuncios.filter((a) => !a.vinculado).length;
+  const podeVincular =
+    temPermissao(sessao.papel, "lotes", "criar") && temPermissao(sessao.papel, "itens_custo", "criar");
 
   return (
     <div className="flex flex-col gap-5">
@@ -71,13 +74,26 @@ export default async function AnunciosImportadosPage() {
             · só leitura, nada é alterado no ML
           </span>
         </div>
-        {podeImportar && <BotaoImportar />}
+        {podeImportar && (
+          <div className="flex flex-wrap items-start gap-3">
+            {semVinculo > 0 && podeVincular && (
+              <Link
+                href="/integracoes/mercado-livre/vincular"
+                className="rounded-button border border-border px-4 py-2 text-[13px] font-medium text-ink foco"
+              >
+                Vincular ao Estoque ({semVinculo}) →
+              </Link>
+            )}
+            <BotaoImportar />
+          </div>
+        )}
       </header>
 
       {duplicados > 0 && (
         <p role="status" className="rounded-card bg-warning-soft px-4 py-3 text-[13px] text-warning-text">
-          {duplicados} anúncios dividem SKU com outro anúncio. O vínculo com o Estoque
-          fica bloqueado para eles até o SKU ser corrigido no Mercado Livre (RN-123).
+          {duplicados} anúncios dividem SKU com outro anúncio. No vínculo com o Estoque, o
+          primeiro fica com o SKU e os seguintes ganham -B, -C… (RN-124). Dá para corrigir no
+          Mercado Livre depois.
         </p>
       )}
 
@@ -153,10 +169,11 @@ export default async function AnunciosImportadosPage() {
                     <td className="px-2 py-2 text-right tabular-nums">{a.qtdDisponivel}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{a.qtdVendida}</td>
                     <td className="px-2 py-2 text-ink-2">{TIPO[a.tipoAnuncio] ?? a.tipoAnuncio}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 whitespace-nowrap">
                       <span className={`rounded-pill px-2.5 py-[3px] text-[11px] ${status.classe}`}>
                         {status.rotulo}
                       </span>
+                      {a.vinculado && <span className="ml-1.5 text-[11px] text-ink-2">· no Estoque</span>}
                     </td>
                   </tr>
                 );
