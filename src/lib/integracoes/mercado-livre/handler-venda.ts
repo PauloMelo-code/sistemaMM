@@ -165,6 +165,8 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
           canal: "mercado_livre",
           vendido_em: pedido.vendidoEm,
           quantidade: pedido.quantidade,
+          // RN-126: cancelar so devolve sozinho a unidade que esta venda tirou.
+          baixou_estoque: !jaContada,
           custo_na_venda: custoDoPedido,
           valor: pedido.valor.toFixed(2),
           taxa: dinheiro.taxa.toFixed(2),

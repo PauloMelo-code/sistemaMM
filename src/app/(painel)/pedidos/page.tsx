@@ -20,9 +20,11 @@ import { redirect } from "next/navigation";
 
 import { lerPedidos, mesCorrente, ORDENS_PEDIDOS, type StatusPedido } from "@/lib/actions/pedidos";
 import { CabecalhoOrdenavel, lerOrdem } from "@/components/ui/cabecalho-ordenavel";
+import { temPermissao } from "@/lib/auth/rbac";
 import { lerSessao } from "@/lib/auth/sessao";
 import { formatarBRL, type Canal } from "@/lib/pricing";
 
+import { ConferirDevolucao } from "./_components/conferir-devolucao";
 import { FiltroMes, rotuloDoMes, rotuloDoMesEmMaiuscula } from "./_components/filtro-mes";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +43,12 @@ const PILL_STATUS: Record<StatusPedido, { rotulo: string; classe: string }> = {
   cancelado: { rotulo: "Cancelado", classe: "bg-danger-soft text-danger" },
 };
 
+const ROTULO_DEVOLUCAO = {
+  a_conferir: "Devolvido · a conferir",
+  reintegrada: "Devolvido · voltou ao estoque",
+  descartada: "Devolvido · não voltou",
+} as const;
+
 export default async function PedidosPage({
   searchParams,
 }: {
@@ -51,6 +59,8 @@ export default async function PedidosPage({
 
   const params = await searchParams;
   const { ordem, direcao } = lerOrdem(ORDENS_PEDIDOS, params.ordem, params.dir);
+  // Decidido no servidor; a action confere de novo (RN-126).
+  const podeConferir = temPermissao(sessao.papel, "itens", "atualizar");
   const { pedidos, totais, dinheiroOculto, mes } = await lerPedidos(
     sessao.papel,
     params.mes,
@@ -243,6 +253,15 @@ export default async function PedidosPage({
                       >
                         {pill.rotulo}
                       </span>
+                      {/* RN-126: a peca devolvida espera alguem conferir. */}
+                      {p.devolucao && (
+                        <span className="mt-1 block whitespace-nowrap text-[11px] text-ink-2">
+                          {ROTULO_DEVOLUCAO[p.devolucao]}
+                        </span>
+                      )}
+                      {p.devolucao === "a_conferir" && podeConferir && (
+                        <ConferirDevolucao pedidoId={p.id} produto={p.produto} />
+                      )}
                     </td>
                   </tr>
                 );

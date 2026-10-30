@@ -13,6 +13,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { atualizarEnviosPendentes } from "@/lib/integracoes/mercado-livre/atualizacao-envios";
+import { varrerReclamacoes } from "@/lib/integracoes/mercado-livre/devolucoes";
 import { reconciliarPedidosML } from "@/lib/integracoes/mercado-livre/reconciliacao";
 
 export const runtime = "nodejs";
@@ -41,8 +42,14 @@ export async function POST(request: Request) {
     return { erro: erro instanceof Error ? erro.message : String(erro) };
   });
 
+  // Devolucoes (RN-126): o ML nao muda o pedido numa devolucao, so a reclamacao.
+  const devolucoes = await varrerReclamacoes().catch((erro) => {
+    console.error("[devolucoes] falhou", erro);
+    return { erro: erro instanceof Error ? erro.message : String(erro) };
+  });
+
   try {
-    return NextResponse.json({ ...(await reconciliarPedidosML()), envios }, { status: 200 });
+    return NextResponse.json({ ...(await reconciliarPedidosML()), envios, devolucoes }, { status: 200 });
   } catch (erro) {
     // O desfecho ja foi gravado em `integracoes_sincronizacoes` — inclusive o
     // erro — entao o alarme de obsolescencia enxerga a falha mesmo que ninguem

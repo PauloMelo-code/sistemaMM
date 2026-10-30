@@ -476,3 +476,36 @@ Cada regra segue este formato:
   - **Respondida nunca sai**: e historico de atendimento.
 - **Impacto se descumprida**: a caixa enche de pergunta fantasma com SLA
   vermelho, e a pill que existe para alertar vira paisagem.
+
+### RN-126
+**Pedido cancelado ou devolvido sai do faturamento; a peca volta ao estoque so quando cabe.**
+
+- **Definida por**: Paulo
+- **Data**: 2026-10-29
+- **Modulo**: Pedidos, Estoque, Integracoes (Mercado Livre)
+- **Contexto**: o ML nao muda o `status` do pedido quando o comprador devolve:
+  ele continua `paid`. A devolucao so aparece na **reclamacao** (claim) e no
+  **retorno** ligado a ela (docs/ml-api-notas.md). Sem ler isso, pedido devolvido
+  continuava contando como venda.
+- **A regra**:
+  - **Cancelado antes do envio** (o pedido estava aguardando envio): a peca nunca
+    saiu. As unidades **voltam sozinhas** ao estoque.
+  - **Devolvido** (a devolucao chegou ao vendedor e o dinheiro voltou ao
+    comprador): o pedido vira **cancelado** e fica **"devolvido, a conferir"**. A
+    peca so volta ao estoque quando alguem confere e clica **"Volta ao
+    estoque"**. **"Nao volta"** registra a decisao sem mexer no estoque. Peca de
+    leilao devolvida pode vir com defeito.
+  - **Reembolso sem devolucao fisica** (devolucao `low_cost`, ou reclamacao
+    encerrada com reembolso e sem retorno): o pedido vira cancelado, e nao ha o
+    que conferir.
+  - **Cancelado depois do envio sem devolucao registrada**: fica "a conferir"
+    tambem. Na duvida, gente decide.
+- **So devolve automaticamente quem baixou.** Pedido do historico (RN-124) foi
+  gravado sem baixar estoque; devolver a unidade dele contaria a peca duas
+  vezes. `pedidos.baixou_estoque` diz qual e qual.
+- **Item que estava `vendido` e recebe unidade de volta vira `pausado`**: o
+  anuncio precisa ser reativado por alguem, nao sozinho.
+- **Cancelamento nunca e exclusao** (RN-112): o pedido fica no relatorio, fora
+  das somas de faturamento, taxa e liquido.
+- **Impacto se descumprida**: venda devolvida inflando o faturamento, e peca
+  devolvida com defeito sendo revendida sem ninguem olhar.

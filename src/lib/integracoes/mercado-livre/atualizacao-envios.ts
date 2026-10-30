@@ -21,6 +21,7 @@ import { registrarAuditoria } from "@/lib/audit/logger";
 
 import { chamarML, type Lane } from "./client";
 import { lerPedidoParaEnvio, lerStatusDoEnvio, statusPedidoPara } from "./envio-ml";
+import { cancelarPedido } from "../cancelamento";
 import { USUARIO_SISTEMA_ID } from "../usuario-sistema";
 import type { EventoParaHandler } from "../handlers";
 
@@ -66,6 +67,15 @@ export async function atualizarPedidoML(
   if (!mudaStatus && !mudaEnvio) return "igual";
 
   await db.transaction(async (tx) => {
+    // Cancelar decide tambem o destino da peca (RN-126): mora em um lugar so.
+    if (novo === "cancelado") {
+      if (mudaEnvio) {
+        await tx.update(pedidos).set({ id_envio_externo: pedido.idEnvio }).where(eq(pedidos.id, local.id));
+      }
+      await cancelarPedido(tx, local.id, { motivo: "cancelado_no_canal", usuarioId: USUARIO_SISTEMA_ID });
+      return;
+    }
+
     await tx
       .update(pedidos)
       .set({

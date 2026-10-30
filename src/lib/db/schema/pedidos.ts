@@ -44,6 +44,16 @@ export const statusPedidoEnum = pgEnum("status_pedido", [
   "cancelado",
 ]);
 
+/**
+ * Devolucao fisica de um pedido (RN-126). Nulo = nao houve. `a_conferir`: a peca
+ * voltou e alguem precisa olhar antes de ela voltar ao estoque.
+ */
+export const situacaoDevolucaoEnum = pgEnum("situacao_devolucao", [
+  "a_conferir",
+  "reintegrada",
+  "descartada",
+]);
+
 export const pedidos = pgTable(
   "pedidos",
   {
@@ -83,6 +93,17 @@ export const pedidos = pgTable(
      * do pedido inteiro (unitario x quantidade, `custoNaVenda` em pricing.ts).
      */
     quantidade: integer("quantidade").notNull().default(1),
+    /**
+     * Esta venda tirou unidades de `itens.quantidade`? Venda do historico
+     * (anterior a importacao, RN-124) nao tirou. E o que decide se cancelar
+     * devolve a unidade sozinho (RN-126) — devolver o que nunca saiu contaria a
+     * peca duas vezes.
+     */
+    baixou_estoque: boolean("baixou_estoque").notNull().default(true),
+    /** RN-126: nulo = sem devolucao fisica. */
+    devolucao: situacaoDevolucaoEnum("devolucao"),
+    /** Reclamacao (claim) do canal que cancelou/devolveu este pedido. */
+    id_reclamacao_externo: text("id_reclamacao_externo"),
 
     valor: numeric("valor", { precision: 14, scale: 2 }).notNull(),
     taxa: numeric("taxa", { precision: 14, scale: 2 }).notNull(),

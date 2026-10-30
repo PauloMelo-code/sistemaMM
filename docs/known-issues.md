@@ -447,9 +447,18 @@ venda.
   - `not_delivered` e envio `cancelled` **nao mudam** o pedido, porque o
     segundo pode ser venda enviada por fora do ML.
   - So pedido `cancelled` no ML vira cancelado.
-- **⚠️ Cancelado nao devolve a unidade ao estoque.** Pedido cancelado antes do
-  envio (o comprador desistiu) sai do faturamento, mas a quantidade do item
-  continua baixada. Entra junto com o fluxo de devolucao (proxima entrega).
+- **✅ Cancelamento e devolucao (RN-126), 2026-10-29:** `src/lib/integracoes/cancelamento.ts`,
+  `mercado-livre/{devolucao-ml,devolucoes}.ts`, migracao `0017`.
+  - Cancelado antes do envio devolve a unidade sozinho, se a venda tinha baixado
+    estoque.
+  - Devolvido, ou cancelado depois do envio, fica "a conferir" em Pedidos, com
+    os botoes Volta ao estoque / Nao volta.
+  - Devolucoes antigas e novas chegam pela varredura de reclamacoes (a cada
+    15 min, ate 150) e pelo topico `post_purchase`. Esse topico precisa ser
+    marcado no DevCenter, em Post Purchase > claims.
+  - **NAO verificado contra resposta real:** o formato de `/post-purchase/v1/claims`
+    e de `/v2/claims/{id}/returns`. A decisao e conservadora: so cancela venda
+    quando o dinheiro voltou ao comprador.
 - **NAO verificado:** a resposta real de `/shipments` com `x-format-new`. Ela
   foi lida a partir da documentacao.
 

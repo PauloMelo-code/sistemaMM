@@ -31,6 +31,8 @@ export interface PedidoNaTela {
   status: StatusPedido;
   /** `true` = ninguem conferiu os valores contra o extrato do canal. */
   aConferir: boolean;
+  /** RN-126: nulo = sem devolucao fisica. */
+  devolucao: "a_conferir" | "reintegrada" | "descartada" | null;
   /** So para quem pode ver dinheiro (RN-107). */
   valor?: number;
   taxa?: number;
@@ -146,6 +148,7 @@ export async function lerPedidos(
       nfeEmitida: pedidos.nfe_emitida,
       status: pedidos.status,
       conciliadoEm: pedidos.conciliado_em,
+      devolucao: pedidos.devolucao,
       valor: mostrarDinheiro ? pedidos.valor : sql<string | null>`NULL`,
       taxa: mostrarDinheiro ? pedidos.taxa : sql<string | null>`NULL`,
       taxaOrigem: mostrarDinheiro ? pedidos.taxa_origem : sql<string | null>`NULL`,
@@ -165,6 +168,7 @@ export async function lerPedidos(
       nfeEmitida: l.nfeEmitida,
       status: l.status as StatusPedido,
       aConferir: l.conciliadoEm === null,
+      devolucao: l.devolucao,
     };
     if (!mostrarDinheiro) return base;
     return {

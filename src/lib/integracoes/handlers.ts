@@ -77,6 +77,16 @@ HANDLERS.set(chaveHandler("mercado_livre", "shipments"), async (evento) => {
   await handlerEnvioML(evento);
 });
 
+// Reclamacao/devolucao (grupo "Post Purchase" do DevCenter) — RN-126. A doc diz
+// `topic: "post_purchase"`; `claims` fica registrado tambem, porque o nome do
+// subtopico e o que aparece no DevCenter e custa uma linha.
+const reclamacao: Handler = async (evento) => {
+  const { handlerReclamacaoML } = await import("./mercado-livre/devolucoes");
+  await handlerReclamacaoML(evento);
+};
+HANDLERS.set(chaveHandler("mercado_livre", "post_purchase"), reclamacao);
+HANDLERS.set(chaveHandler("mercado_livre", "claims"), reclamacao);
+
 // Pergunta nova (ou respondida pelo painel do ML) — RN-105. Mesmo motivo do
 // `import` dinamico acima.
 HANDLERS.set(chaveHandler("mercado_livre", "questions"), async (evento) => {
