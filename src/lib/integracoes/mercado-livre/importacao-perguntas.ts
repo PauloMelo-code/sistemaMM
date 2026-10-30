@@ -17,8 +17,14 @@ import { db } from "@/lib/db";
 import { perguntas } from "@/lib/db/schema/perguntas";
 import { registrarAuditoria } from "@/lib/audit/logger";
 
-import { chamarML } from "./client";
-import { lerPaginaPerguntas, lerPerguntaML, type PerguntaML } from "./pergunta-ml";
+import { chamarML, ErroML } from "./client";
+import {
+  idDaPergunta,
+  lerPaginaPerguntas,
+  lerPerguntaML,
+  perguntaEncerradaNoML,
+  type PerguntaML,
+} from "./pergunta-ml";
 import { ErroPermanente } from "../retentativa";
 import { USUARIO_SISTEMA_ID } from "../usuario-sistema";
 import type { EventoParaHandler } from "../handlers";
@@ -35,7 +41,9 @@ export interface ResumoPerguntas {
   lidas: number;
   novas: number;
   atualizadas: number;
-  /** Encerradas sem resposta, banidas, excluidas: nao entram na caixa. */
+  /** Pendentes que o ML diz excluidas ou encerradas: sairam da caixa. */
+  encerradas: number;
+  /** Fora da caixa e que nao estavam nela (em revisao, de outra conta). */
   ignoradas: number;
   falhas: number;
 }
@@ -101,13 +109,99 @@ async function gravar(lista: PerguntaML[], usuarioId: string, resumo: ResumoPerg
   });
 }
 
+/**
+ * Tira da caixa as PENDENTES que o ML diz estarem encerradas. Exclusao logica,
+ * com trilha. Respondida fica: e historico de atendimento, nao trabalho.
+ */
+async function encerrar(ids: string[], usuarioId: string, resumo: ResumoPerguntas) {
+  if (ids.length === 0) return;
+
+  await db.transaction(async (tx) => {
+    const fechadas = await tx
+      .update(perguntas)
+      .set({ is_deleted: true, deleted_at: new Date(), updated_at: new Date(), modified_by: usuarioId })
+      .where(
+        and(
+          eq(perguntas.canal, "mercado_livre"),
+          inArray(perguntas.id_externo, ids),
+          eq(perguntas.status, "pendente"),
+          eq(perguntas.is_deleted, false),
+        ),
+      )
+      .returning({ id: perguntas.id, idExterno: perguntas.id_externo });
+
+    for (const f of fechadas) {
+      resumo.encerradas += 1;
+      await registrarAuditoria(tx, {
+        userId: usuarioId,
+        acao: "excluir",
+        tabela: "perguntas",
+        registroId: f.id,
+        detalhes: `Tirou da caixa a pergunta ${f.idExterno}: excluida ou encerrada no Mercado Livre`,
+      });
+    }
+  });
+}
+
+/**
+ * As pendentes da caixa que a busca NAO devolveu. Pergunta excluida pelo
+ * comprador some da busca do ML, entao so perguntando uma a uma se sabe se ela
+ * ainda existe. Sao poucas (so as pendentes), e a chamada e por id.
+ */
+async function conferirPendentesSumidas(
+  vistas: ReadonlySet<string>,
+  vendedor: string,
+  usuarioId: string,
+  resumo: ResumoPerguntas,
+) {
+  const pendentes = await db
+    .select({ idExterno: perguntas.id_externo })
+    .from(perguntas)
+    .where(
+      and(
+        eq(perguntas.canal, "mercado_livre"),
+        eq(perguntas.status, "pendente"),
+        eq(perguntas.is_deleted, false),
+      ),
+    );
+
+  const encerradas: string[] = [];
+  const atualizadas: PerguntaML[] = [];
+
+  for (const { idExterno } of pendentes) {
+    if (!idExterno || vistas.has(idExterno)) continue;
+    let bruta: unknown;
+    try {
+      bruta = await chamarML(`/questions/${idExterno}?api_version=4`);
+    } catch (erro) {
+      // 404: o ML nao conhece mais a pergunta — excluida.
+      if (erro instanceof ErroML && erro.status === 404) encerradas.push(idExterno);
+      else resumo.falhas += 1;
+      continue;
+    }
+    if (perguntaEncerradaNoML(bruta)) {
+      encerradas.push(idExterno);
+      continue;
+    }
+    const p = lerPerguntaML(bruta);
+    if (p && (!p.idVendedor || p.idVendedor === vendedor)) atualizadas.push(p);
+  }
+
+  await gravar(atualizadas, usuarioId, resumo);
+  await encerrar(encerradas, usuarioId, resumo);
+}
+
 /** Importa as perguntas da conta conectada. Lanca se o ML falhar. */
 export async function importarPerguntasML(usuarioId: string): Promise<ResumoPerguntas> {
-  const resumo: ResumoPerguntas = { lidas: 0, novas: 0, atualizadas: 0, ignoradas: 0, falhas: 0 };
+  const resumo: ResumoPerguntas = {
+    lidas: 0, novas: 0, atualizadas: 0, encerradas: 0, ignoradas: 0, falhas: 0,
+  };
 
   const { id } = await chamarML<{ id: number | string }>("/users/me");
   const vendedor = String(id);
   const lidas: PerguntaML[] = [];
+  const encerradas: string[] = [];
+  const vistas = new Set<string>();
 
   for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
     const busca = new URLSearchParams({
@@ -124,7 +218,13 @@ export async function importarPerguntasML(usuarioId: string): Promise<ResumoPerg
 
     for (const bruta of brutas) {
       resumo.lidas += 1;
+      const idCru = idDaPergunta(bruta);
+      if (idCru) vistas.add(idCru);
       try {
+        if (idCru && perguntaEncerradaNoML(bruta)) {
+          encerradas.push(idCru);
+          continue;
+        }
         const p = lerPerguntaML(bruta);
         if (!p || (p.idVendedor && p.idVendedor !== vendedor)) resumo.ignoradas += 1;
         else lidas.push(p);
@@ -138,6 +238,8 @@ export async function importarPerguntasML(usuarioId: string): Promise<ResumoPerg
   }
 
   await gravar(lidas, usuarioId, resumo);
+  await encerrar(encerradas, usuarioId, resumo);
+  await conferirPendentesSumidas(vistas, vendedor, usuarioId, resumo);
   return resumo;
 }
 
@@ -150,16 +252,26 @@ export async function handlerPerguntaML(evento: EventoParaHandler): Promise<void
     throw new ErroPermanente("Notificacao de pergunta sem `recurso` — nao ha o que buscar.");
   }
 
+  const resumo: ResumoPerguntas = {
+    lidas: 1, novas: 0, atualizadas: 0, encerradas: 0, ignoradas: 0, falhas: 0,
+  };
   const separador = evento.recurso.includes("?") ? "&" : "?";
   const bruta = await chamarML(`${evento.recurso}${separador}api_version=4`, { lane: "urgente" });
+
+  // Excluida ou encerrada: se ja estava na caixa como pendente, sai dela.
+  const idCru = idDaPergunta(bruta);
+  if (idCru && perguntaEncerradaNoML(bruta)) {
+    await encerrar([idCru], USUARIO_SISTEMA_ID, resumo);
+    return;
+  }
+
   const p = lerPerguntaML(bruta);
-  if (!p) return; // excluida, banida, encerrada: nada a fazer na caixa
+  if (!p) return; // em revisao: passageiro, nada a fazer agora
 
   const { id } = await chamarML<{ id: number | string }>("/users/me", { lane: "urgente" });
   if (p.idVendedor && p.idVendedor !== String(id)) {
     throw new ErroPermanente(`Pergunta ${p.idExterno} e de outro vendedor (${p.idVendedor}).`);
   }
 
-  const resumo: ResumoPerguntas = { lidas: 1, novas: 0, atualizadas: 0, ignoradas: 0, falhas: 0 };
   await gravar([p], USUARIO_SISTEMA_ID, resumo);
 }

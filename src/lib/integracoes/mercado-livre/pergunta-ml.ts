@@ -17,6 +17,13 @@ import { META_SLA_HORAS } from "../../sla.ts";
 const STATUS_PENDENTE = "UNANSWERED";
 const STATUS_RESPONDIDA = "ANSWERED";
 
+/**
+ * Status em que a pergunta deixou de existir para o vendedor: excluida pelo
+ * comprador, banida, encerrada sem resposta (anuncio fechado), desativada.
+ * `UNDER_REVIEW` fica de fora de proposito: e passageiro, a pergunta pode voltar.
+ */
+const STATUS_ENCERRADOS = new Set(["DELETED", "BANNED", "CLOSED_UNANSWERED", "DISABLED"]);
+
 export interface PerguntaML {
   idExterno: string;
   idAnuncio: string;
@@ -93,6 +100,21 @@ export function lerPerguntaML(payload: unknown): PerguntaML | null {
     respondidaEm: respondida && resposta ? data(resposta.date_created) : null,
     idVendedor: texto(raiz.seller_id),
   };
+}
+
+/**
+ * A pergunta foi encerrada no ML? Uma pergunta que ja esta na caixa como
+ * pendente e o ML diz isto precisa SAIR — senao fica la para sempre, com o SLA
+ * vencido crescendo, sem existir em lugar nenhum.
+ */
+export function perguntaEncerradaNoML(payload: unknown): boolean {
+  const status = texto(objeto(payload)?.status);
+  return status !== null && STATUS_ENCERRADOS.has(status);
+}
+
+/** Id de uma pergunta crua, para casar com a caixa mesmo quando ela nao e lida. */
+export function idDaPergunta(payload: unknown): string | null {
+  return texto(objeto(payload)?.id);
 }
 
 /** Uma pagina do `/questions/search`: as perguntas e o total da conta. */

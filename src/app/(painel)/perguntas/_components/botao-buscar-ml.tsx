@@ -34,6 +34,8 @@ export function BotaoBuscarPerguntasML() {
         {resultado?.ok === true && (
           <span className="text-ink-2">
             {resultado.resumo.novas} novas · {resultado.resumo.atualizadas} atualizadas
+            {resultado.resumo.encerradas > 0 &&
+              ` · ${resultado.resumo.encerradas} encerradas no ML saíram da caixa`}
             {resultado.resumo.falhas > 0 && (
               <span className="text-warning-text"> · {resultado.resumo.falhas} não lidas</span>
             )}

@@ -8,7 +8,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { META_SLA_HORAS } from "../../sla.ts";
-import { lerPaginaPerguntas, lerPerguntaML, PerguntaMLInvalidaError } from "./pergunta-ml.ts";
+import {
+  idDaPergunta,
+  lerPaginaPerguntas,
+  lerPerguntaML,
+  perguntaEncerradaNoML,
+  PerguntaMLInvalidaError,
+} from "./pergunta-ml.ts";
 
 const pendente = () => ({
   id: 13456789012,
@@ -46,6 +52,16 @@ test("status que nao pede acao fica de fora", () => {
   for (const status of ["CLOSED_UNANSWERED", "BANNED", "DELETED", "UNDER_REVIEW"]) {
     assert.equal(lerPerguntaML({ ...pendente(), status }), null);
   }
+});
+
+test("encerrada no ML: excluida, banida, fechada; em revisao nao (e passageiro)", () => {
+  for (const status of ["DELETED", "BANNED", "CLOSED_UNANSWERED", "DISABLED"]) {
+    assert.equal(perguntaEncerradaNoML({ ...pendente(), status }), true, status);
+  }
+  for (const status of ["UNANSWERED", "ANSWERED", "UNDER_REVIEW"]) {
+    assert.equal(perguntaEncerradaNoML({ ...pendente(), status }), false, status);
+  }
+  assert.equal(idDaPergunta(pendente()), "13456789012");
 });
 
 test("sem data recusa — prazo de SLA nao se inventa", () => {

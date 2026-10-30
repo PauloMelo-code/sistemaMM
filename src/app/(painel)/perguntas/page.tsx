@@ -87,7 +87,11 @@ export default async function PerguntasPage() {
           aria-label="Fila de perguntas"
           className="overflow-hidden rounded-card border border-border bg-card shadow-(--shadow-card)"
         >
-          <ListaPerguntas perguntas={perguntas} truncada={truncada} />
+          <ListaPerguntas
+            perguntas={perguntas}
+            truncada={truncada}
+            podeArquivar={temPermissao(sessao.papel, "perguntas", "atualizar")}
+          />
         </section>
 
         <section

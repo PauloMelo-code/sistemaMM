@@ -455,3 +455,24 @@ Cada regra segue este formato:
 - **Impacto se descumprida**: venda antiga baixando estoque de novo zera itens
   que ainda existem; rateio fora de `pricing.ts` vira segunda copia da regra de
   dinheiro (RN-100).
+
+### RN-125
+**Pergunta que deixou de existir no canal, ou que foi arquivada, sai da caixa e do SLA.**
+
+- **Definida por**: Paulo
+- **Data**: 2026-10-29
+- **Modulo**: Perguntas (RN-105)
+- **Contexto**: perguntas importadas do ML como pendentes continuavam na caixa
+  depois de excluidas ou encerradas la, com o SLA vencido crescendo, sem existir
+  em lugar nenhum.
+- **A regra**:
+  - Pendente que o ML da como **excluida, banida, encerrada sem resposta ou
+    desativada** sai da caixa por exclusao logica, com trilha. A busca confere
+    uma a uma as pendentes que ela nao devolveu: pergunta excluida some da busca
+    do ML. **Em revisao** nao conta: e passageiro.
+  - **Arquivar** (administrador e operador, `perguntas: atualizar`) tira uma
+    pendente da caixa sem responder, com trilha de quem e quando. **Nao mexe no
+    ML**: se ela ainda estiver aberta la, continua aberta.
+  - **Respondida nunca sai**: e historico de atendimento.
+- **Impacto se descumprida**: a caixa enche de pergunta fantasma com SLA
+  vermelho, e a pill que existe para alertar vira paisagem.

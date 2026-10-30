@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
+import { ModalConfirmacaoBlock } from "@/components/ui/modal-confirmacao-block";
 import type { PerguntaNaFila } from "@/lib/actions/perguntas";
+import { arquivarPergunta } from "@/lib/actions/perguntas-mutacoes";
 import type { Canal } from "@/lib/pricing";
 import { classificarSla, formatarDuracao, textoPrazo, type EstadoSla } from "@/lib/sla";
 
@@ -59,9 +61,55 @@ interface ListaPerguntasProps {
   perguntas: PerguntaNaFila[];
   /** Ha pergunta alem do limite da consulta — a fila mostrada nao e tudo. */
   truncada: boolean;
+  /** Decidido no servidor (`perguntas: atualizar`); a action confere de novo. */
+  podeArquivar: boolean;
 }
 
-export function ListaPerguntas({ perguntas, truncada }: ListaPerguntasProps) {
+/**
+ * Arquivar: tira a pergunta da caixa e do SLA sem responder. E exclusao
+ * (logica), entao passa pelo modal com bloqueio, como toda exclusao da casa.
+ */
+function BotaoArquivar({ id, texto }: { id: string; texto: string }) {
+  const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState("");
+  const [arquivando, iniciar] = useTransition();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setErro("");
+          setAberto(true);
+        }}
+        className="rounded-button border border-border-input px-3 py-[5px] text-xs text-ink-2 hover:bg-table-head foco"
+      >
+        Arquivar
+      </button>
+      <ModalConfirmacaoBlock
+        aberto={aberto}
+        titulo="Arquivar pergunta"
+        rotuloConfirmar="Arquivar"
+        ocupado={arquivando}
+        erro={erro}
+        onCancelar={() => setAberto(false)}
+        onConfirmar={() =>
+          iniciar(async () => {
+            const r = await arquivarPergunta(id);
+            if (r.ok) setAberto(false);
+            else setErro(r.erro);
+          })
+        }
+      >
+        A pergunta <strong>“{texto.slice(0, 120)}”</strong> sai da caixa e do SLA, sem
+        resposta. <strong>Isto não mexe no Mercado Livre</strong>: se ela ainda estiver aberta
+        lá, continua aberta. Fica registrado quem arquivou e quando.
+      </ModalConfirmacaoBlock>
+    </>
+  );
+}
+
+export function ListaPerguntas({ perguntas, truncada, podeArquivar }: ListaPerguntasProps) {
   // Segundos passados desde que a pagina montou. Comeca em 0 para o primeiro
   // render bater exatamente com o HTML do servidor (senao: erro de hidratacao).
   const [decorridos, setDecorridos] = useState(0);
@@ -173,6 +221,7 @@ export function ListaPerguntas({ perguntas, truncada }: ListaPerguntasProps) {
                   >
                     Usar modelo
                   </button>
+                  {podeArquivar && <BotaoArquivar id={pergunta.id} texto={pergunta.texto} />}
                 </div>
               )}
             </li>
