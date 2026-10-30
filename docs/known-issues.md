@@ -453,9 +453,10 @@ venda.
   alerta "urgente" para sincronizacao parada ha mais de 90 min, e a importacao
   manual acenderia esse alerta depois de cada clique. A "ultima importacao" sai
   de `max(sincronizado_em)` da propria tabela.
-- **Antes de usar em PRD:** `npm run db:migrate` (migracao `0012`, so cria a
-  tabela) e novo deploy, que tambem libera as fotos `*.mlstatic.com` no
-  `next.config.ts`.
+- **Antes de usar em PRD:** novo deploy (que tambem libera as fotos
+  `*.mlstatic.com` no `next.config.ts`) e, no console do servico,
+  `node scripts/migrar.mjs` (migracao `0012`, so cria a tabela). Nao e
+  `npm run db:migrate`: o `drizzle-kit` nao entra na imagem (runbook §4).
 
 ### 🟢 Spec "Sistema de Anuncios" pede Prisma; o projeto usa Drizzle (intencional)
 - **Modulo:** Integracoes (Mercado Livre)
