@@ -14,7 +14,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
-  pgTable, pgEnum, uuid, text, numeric, boolean, timestamp, index, uniqueIndex,
+  pgTable, pgEnum, uuid, text, numeric, integer, boolean, timestamp, index, uniqueIndex, check,
 } from "drizzle-orm/pg-core";
 
 import { itens } from "./itens";
@@ -78,6 +78,11 @@ export const pedidos = pgTable(
     // Nunca derive a margem historica de `itens.custo`: use esta coluna.
     // Completude depende do rateio lote -> item (ver known-issues).
     custo_na_venda: numeric("custo_na_venda", { precision: 14, scale: 2 }).notNull(),
+    /**
+     * Unidades vendidas neste pedido (ADR-0002). `custo_na_venda` ja e o custo
+     * do pedido inteiro (unitario x quantidade, `custoNaVenda` em pricing.ts).
+     */
+    quantidade: integer("quantidade").notNull().default(1),
 
     valor: numeric("valor", { precision: 14, scale: 2 }).notNull(),
     taxa: numeric("taxa", { precision: 14, scale: 2 }).notNull(),
@@ -143,32 +148,19 @@ export const pedidos = pgTable(
     canalNumeroIdx: uniqueIndex("idx_pedidos_canal_numero").on(t.canal, t.numero),
 
     // ===================================================================
-    // COMPRA SIMULTANEA — a trava mais importante deste schema.
+    // COMPRA SIMULTANEA — onde a trava mora agora (ADR-0002).
     //
-    // Todo item e PECA UNICA de leilao e fica anunciado em VARIOS canais ao
-    // mesmo tempo. Dois compradores fecham no mesmo instante (um no ML, outro
-    // na OLX); os dois webhooks chegam quase juntos e cada um cria seu pedido.
-    // Existe UMA peca. Um dos dois nao vai receber.
+    // Ate 2026-10-29 havia aqui `idx_pedidos_item_ativo`: um pedido ativo por
+    // item, porque todo item era peca unica. Com `itens.quantidade`, um item
+    // de 19 unidades tem 19 pedidos legitimos, e o indice recusaria o segundo.
     //
-    // Sem este indice, nada no banco impede isso — a checagem "o item ja foi
-    // vendido?" feita na aplicacao SEMPRE tem uma janela entre o SELECT e o
-    // INSERT, por menor que seja. O indice fecha a janela: o segundo INSERT
-    // levanta 23505 e o handler trata como "item ja vendido em outro canal".
-    //
-    // A aplicacao ainda deve serializar (transacao + SELECT ... FOR UPDATE no
-    // item) para dar erro bonito em vez de exceção — mas o banco e quem
-    // GARANTE. Ver RN-112 em docs/regras-negocio.md.
-    //
-    // Pedido cancelado sai do indice e devolve o item ao mercado.
+    // A garantia passou para `itens`: `CHECK (quantidade >= 0)`, com o handler
+    // baixando a quantidade no MESMO commit do pedido. Duas vendas disputando a
+    // ultima unidade levam a -1 e o banco recusa. Ver RN-112.
     // ===================================================================
-    // NOTA: este indice usa o valor 'cancelado' do enum, entao PRECISA vir numa
-    // migracao SEPARADA da que criou o valor — o Postgres recusa usar valor novo
-    // de enum na mesma transacao ("unsafe use of new value"), e o drizzle-kit
-    // roda cada migracao em transacao. Ver docs/back.md.
-    umPedidoAtivoPorItemIdx: uniqueIndex("idx_pedidos_item_ativo")
-      .on(t.item_id)
-      .where(sql`${t.is_deleted} = false AND ${t.status} <> 'cancelado'`),
     itemIdx: index("idx_pedidos_item").on(t.item_id),
+    // Pedido de zero unidades nao e venda.
+    quantidadePositiva: check("chk_pedidos_quantidade_positiva", sql`${t.quantidade} >= 1`),
     // Todo relatorio filtra e agrupa por periodo de VENDA (mes fechado,
     // comissao do dia 5, vendas por canal). E o acesso mais repetido da tabela.
     vendidoEmIdx: index("idx_pedidos_vendido_em").on(t.vendido_em),

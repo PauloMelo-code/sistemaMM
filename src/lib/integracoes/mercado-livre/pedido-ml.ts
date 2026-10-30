@@ -24,6 +24,8 @@ export interface PedidoML {
   numero: string;
   /** Id do anuncio (MLB...). E por ele que achamos o nosso item. */
   idAnuncio: string;
+  /** Unidades compradas (ADR-0002). E o que a venda baixa do estoque. */
+  quantidade: number;
   /** Quando a venda aconteceu NO CANAL — nunca a hora da nossa gravacao. */
   vendidoEm: Date;
   /** Bruto cobrado do comprador. */
@@ -72,11 +74,11 @@ const texto = (v: unknown): string | null => {
 /**
  * Le e valida o payload. Lanca `PedidoMLInvalidoError` no que nao servir.
  *
- * MULTI-ITEM E RECUSADO de proposito. O modelo da casa e um pedido = uma peca
- * (`pedidos.item_id` e NOT NULL e ha unico por item ativo), porque item de
- * leilao e peca unica. Um pedido com dois itens nao tem representacao possivel
- * aqui, e "processar so o primeiro" perderia uma venda em silencio. Recusar
- * deixa o evento na fila com erro visivel, para alguem decidir.
+ * MULTI-ITEM E RECUSADO de proposito. O modelo da casa e um pedido = um item
+ * (`pedidos.item_id` e NOT NULL), com `quantidade` unidades dele (ADR-0002).
+ * Um pedido com dois ANUNCIOS diferentes nao tem representacao aqui, e
+ * "processar so o primeiro" perderia uma venda em silencio. Recusar deixa o
+ * evento na fila com erro visivel, para alguem decidir.
  */
 export function lerPedidoML(payload: unknown): PedidoML {
   const raiz = objeto(payload);
@@ -104,6 +106,14 @@ export function lerPedidoML(payload: unknown): PedidoML {
   const idAnuncio = anuncio ? texto(anuncio.id) : null;
   if (!idAnuncio) throw new PedidoMLInvalidoError("sem `order_items[0].item.id`");
 
+  // Obrigatoria: assumir 1 quando o campo falta baixaria o estoque errado num
+  // pedido de varias unidades — e estoque errado e o que a RN-112 existe para
+  // impedir.
+  const quantidade = linha ? numero(linha.quantity) : null;
+  if (quantidade === null || !Number.isInteger(quantidade) || quantidade < 1) {
+    throw new PedidoMLInvalidoError("`order_items[0].quantity` ausente ou invalida");
+  }
+
   const valor = numero(raiz.total_amount);
   if (valor === null) throw new PedidoMLInvalidoError("`total_amount` ausente ou invalido");
 
@@ -121,6 +131,7 @@ export function lerPedidoML(payload: unknown): PedidoML {
   return {
     numero: numeroPedido,
     idAnuncio,
+    quantidade,
     vendidoEm,
     valor,
     // OPCIONAL: sem ela o pedido nasce com taxa estimada e "a conferir", que e

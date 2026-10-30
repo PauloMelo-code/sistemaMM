@@ -30,6 +30,7 @@ export interface ItemEditavel {
   precoAlvo: string;
   localGalpao: string;
   situacao: string;
+  quantidade: number;
   atualizadoEm: string;
   vendido: boolean;
 }
@@ -84,6 +85,7 @@ function Dialogo({
       preco_alvo: String(d.get("preco_alvo") ?? ""),
       local_galpao: String(d.get("local_galpao") ?? ""),
       situacao: String(d.get("situacao") ?? "sem_anuncio"),
+      quantidade: String(d.get("quantidade") ?? "1"),
     };
 
     setErro("");
@@ -187,13 +189,31 @@ function Dialogo({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="situacao" className={rotulo}>Situação</label>
-          <select id="situacao" name="situacao" defaultValue={item?.situacao ?? "sem_anuncio"} className={campo}>
-            {SITUACOES_ITEM.map((s) => (
-              <option key={s} value={s}>{ROTULO_SITUACAO[s]}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="situacao" className={rotulo}>Situação</label>
+            <select id="situacao" name="situacao" defaultValue={item?.situacao ?? "sem_anuncio"} className={campo}>
+              {SITUACOES_ITEM.map((s) => (
+                <option key={s} value={s}>{ROTULO_SITUACAO[s]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="quantidade" className={rotulo}>Quantidade em estoque</label>
+            <input
+              id="quantidade"
+              name="quantidade"
+              type="number"
+              required
+              min={0}
+              step={1}
+              inputMode="numeric"
+              defaultValue={item?.quantidade ?? 1}
+              className={`${campo} tabular-nums`}
+            />
+            <span className="text-xs text-ink-2">Peça única de leilão: 1. Cada venda baixa sozinha.</span>
+          </div>
         </div>
 
         {erro ? (

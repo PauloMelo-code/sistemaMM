@@ -111,8 +111,9 @@ export async function lerLotes(papel: Papel): Promise<EstadoLotes | null> {
       -- ANUNCIADO soma o preco dos anuncios ATIVOS, e por isso nao e
       -- comparavel com o custo do lote inteiro: sao conjuntos diferentes de
       -- itens. A tela diz quantos itens cada numero cobre.
+      -- Preco do anuncio e UNITARIO: vezes as unidades em estoque (ADR-0002).
       coalesce((
-        SELECT sum(a.preco) FROM anuncios a
+        SELECT sum(a.preco * ia.quantidade) FROM anuncios a
         JOIN itens ia ON ia.id = a.item_id AND ia.is_deleted = false
         WHERE ia.lote_id = l.id AND a.is_deleted = false AND a.status <> 'pausado'
       ), 0)::double precision            AS anunciado,

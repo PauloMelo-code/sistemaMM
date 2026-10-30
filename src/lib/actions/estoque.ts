@@ -30,6 +30,8 @@ export interface ItemNoEstoque {
   lote: string;
   segmento: string;
   situacao: SituacaoItem;
+  /** Unidades em estoque (ADR-0002). Nao e custo: todo papel ve. */
+  quantidade: number;
   /** Canais em que o item tem anuncio ativo. Vazio = nenhum. */
   canais: Canal[];
   /** So para quem pode ver custo (RN-107). Ausente, nao nulo, para os demais. */
@@ -153,12 +155,19 @@ export async function lerEstoque(
   const [kpis] = (
     await db.execute<LinhaSql<KpisEstoque>>(sql`
       SELECT
-        count(*) FILTER (WHERE situacao IN ('anunciado','sem_anuncio'))::int AS disponiveis,
+        -- UNIDADES, nao linhas (ADR-0002): o rele de 19 unidades conta 19.
+        coalesce(sum(quantidade) FILTER (WHERE situacao IN ('anunciado','sem_anuncio')), 0)::int
+                                                                            AS disponiveis,
         count(*) FILTER (WHERE situacao = 'sem_anuncio')::int                AS "semAnuncio",
         count(*) FILTER (WHERE situacao = 'reservado')::int                  AS reservados,
-        count(*) FILTER (
-          WHERE situacao = 'vendido' AND updated_at >= date_trunc('month', now())
-        )::int                                                              AS "vendidosNoMes"
+        -- Unidades vendidas no mes, pelos PEDIDOS e pela data da venda no
+        -- canal. Contar itens com situacao 'vendido' so via quem zerou, e
+        -- pelo updated_at, que muda com qualquer edicao.
+        (
+          SELECT coalesce(sum(p.quantidade), 0)::int FROM pedidos p
+          WHERE p.is_deleted = false AND p.status <> 'cancelado'
+            AND p.vendido_em >= date_trunc('month', now())
+        )                                                                   AS "vendidosNoMes"
       FROM itens
       WHERE is_deleted = false
     `)
@@ -182,6 +191,7 @@ export async function lerEstoque(
       lote: lotes.nome,
       segmento: itens.segmento,
       situacao: itens.situacao,
+      quantidade: itens.quantidade,
       custo: mostrarCusto ? itens.custo : sql<string | null>`NULL`,
       precoAlvo: mostrarCusto ? itens.preco_alvo : sql<string | null>`NULL`,
       /**
@@ -228,6 +238,7 @@ export async function lerEstoque(
         lote: l.lote,
         segmento: l.segmento,
         situacao: l.situacao as SituacaoItem,
+        quantidade: l.quantidade,
         canais: (l.canais ?? []) as Canal[],
       };
 

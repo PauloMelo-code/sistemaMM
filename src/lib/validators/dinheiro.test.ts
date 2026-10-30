@@ -33,6 +33,7 @@ const itemValido = {
   preco_alvo: "",
   local_galpao: "",
   situacao: "sem_anuncio",
+  quantidade: "1",
 };
 
 // --------------------------------------------------------------------------
@@ -141,4 +142,14 @@ test("item: lote precisa ser uuid", () => {
 
 test("item: situacao fora do enum e recusada", () => {
   assert.equal(itemSchema.safeParse({ ...itemValido, situacao: "quase_vendido" }).success, false);
+});
+
+test("item: quantidade e inteiro de zero para cima (ADR-0002)", () => {
+  const r = itemSchema.safeParse({ ...itemValido, quantidade: " 19 " });
+  assert.ok(r.success);
+  assert.equal(r.data.quantidade, 19);
+  assert.equal(itemSchema.safeParse({ ...itemValido, quantidade: "0" }).success, true);
+  for (const quantidade of ["-1", "1,5", "", "abc"]) {
+    assert.equal(itemSchema.safeParse({ ...itemValido, quantidade }).success, false, quantidade);
+  }
 });

@@ -39,7 +39,9 @@ import { registrarAuditoria, descreverMudancas } from "@/lib/audit/logger";
 import { itemSchema, type EntradaItemBruta } from "@/lib/validators/item";
 import type { Resultado } from "./lotes-mutacoes";
 
-const CAMPOS = ["sku", "nome", "segmento", "custo", "preco_alvo", "local_galpao", "situacao"] as const;
+const CAMPOS = [
+  "sku", "nome", "segmento", "custo", "preco_alvo", "local_galpao", "situacao", "quantidade",
+] as const;
 
 function explicar(erro: unknown): string {
   const codigo = (erro as { code?: string })?.code;

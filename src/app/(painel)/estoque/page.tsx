@@ -88,7 +88,7 @@ export default async function EstoquePage({
   // So busca os lotes se houver formulario para preencher.
   const lotes = podeEscrever ? await listarLotesParaSelecao(sessao.papel) : [];
 
-  const colunas = (custoOculto ? 5 : 7) + (podeEscrever ? 1 : 0);
+  const colunas = (custoOculto ? 6 : 8) + (podeEscrever ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-5">
@@ -167,6 +167,8 @@ export default async function EstoquePage({
                   />
                 </>
               )}
+              {/* Qtd: unidades em estoque (ADR-0002). Peca unica e 1. */}
+              <th scope="col" className="px-2 py-2.5 text-right font-normal">Qtd</th>
               {/* Canais NAO ordena: e um array agregado no banco, e "ordenar por
                   lista de canais" nao tem significado que o Anderson use. */}
               <th scope="col" className="px-2 py-2.5 font-normal">Canais</th>
@@ -233,6 +235,7 @@ export default async function EstoquePage({
                         </td>
                       </>
                     )}
+                    <td className="px-2 py-2.5 text-right tabular-nums">{item.quantidade}</td>
                     <td className="px-2 py-2.5 text-ink-2">
                       {item.canais.length === 0
                         ? "—"
@@ -265,6 +268,7 @@ export default async function EstoquePage({
                             precoAlvo: item.precoAlvoTexto!,
                             localGalpao: item.localGalpao!,
                             situacao: item.situacao,
+                            quantidade: item.quantidade,
                             atualizadoEm: item.atualizadoEm!,
                             vendido: item.situacao === "vendido",
                           }}

@@ -9,7 +9,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
-  pgTable, pgEnum, uuid, text, numeric, boolean, timestamp, index, uniqueIndex,
+  pgTable, pgEnum, uuid, text, numeric, integer, boolean, timestamp, index, uniqueIndex, check,
 } from "drizzle-orm/pg-core";
 
 import { lotes } from "./lotes";
@@ -48,6 +48,16 @@ export const itens = pgTable(
     local_galpao: text("local_galpao"),
     situacao: situacaoItemEnum("situacao").notNull().default("sem_anuncio"),
     /**
+     * Unidades em estoque (ADR-0002). Peca unica de leilao e `1`; o rele do ML
+     * tem 19. Cada venda baixa as unidades vendidas, e o item so vira
+     * `vendido` quando chega a 0.
+     *
+     * O `CHECK (quantidade >= 0)` abaixo E a trava de compra simultanea
+     * (RN-112): duas vendas disputando a ultima unidade levam a -1 e o banco
+     * recusa.
+     */
+    quantidade: integer("quantidade").notNull().default(1),
+    /**
      * Toggle "Exibir no site" da tela Site/CMS. Nasce DESLIGADO: item entra no
      * estoque antes de ter foto e descricao, e o site nao pode publicar sozinho
      * o que ninguem revisou.
@@ -73,6 +83,8 @@ export const itens = pgTable(
       .where(sql`${t.is_deleted} = false`),
     loteIdx: index("idx_itens_lote").on(t.lote_id),
     naoDeletadosIdx: index("idx_itens_ativos").on(t.is_deleted),
+    // RN-112: nunca vender unidade que nao existe. Ver o comentario da coluna.
+    quantidadeNaoNegativa: check("chk_itens_quantidade_nao_negativa", sql`${t.quantidade} >= 0`),
   })
 );
 

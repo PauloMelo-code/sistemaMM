@@ -431,6 +431,22 @@ venda.
   envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
   elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
 
+### 🟡 Item com quantidade (ADR-0002) — o que ficou de fora (2026-10-29)
+- **Arquivo(s):** migracao `0014`, `handler-venda.ts`, `pricing.ts`
+  (`custoNaVenda`), telas Estoque e Lotes.
+- **Cancelamento nao devolve a unidade.** Antes, cancelar o pedido liberava o
+  item pelo indice `idx_pedidos_item_ativo`. Agora seria preciso somar a
+  quantidade de volta, e nao existe fluxo de cancelamento. Quando existir, ele
+  precisa devolver as unidades e, se o item tinha zerado, voltar a situacao.
+- **A trava do banco depende de quem grava o pedido baixar a quantidade.** Hoje
+  so o handler de venda grava pedido, e ele baixa. Ver RN-112 e ADR-0002.
+- **Editar a quantidade pelo formulario nao mexe na situacao.** Pôr 0 a mao
+  nao marca `vendido`; so a venda faz isso.
+- **Provado** em Postgres descartavel, com as migracoes do zero:
+  - `prova-compra-simultanea.sql` reescrita, 6/6;
+  - as outras 4 provas continuam verdes;
+  - a `0014` zera a quantidade de item ja `vendido` e mantem 1 nos demais.
+
 ### 🟡 Perguntas do ML entram na caixa — responder ainda nao (2026-10-29)
 - **Arquivo(s):** `src/lib/integracoes/mercado-livre/{pergunta-ml,importacao-perguntas}.ts`,
   `src/lib/integracoes/handlers.ts` (topico `questions`), migracao `0013`

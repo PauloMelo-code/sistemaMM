@@ -22,6 +22,7 @@ import {
   calcularPreco,
   lanceMaximo,
   resultadoDaVenda,
+  custoNaVenda,
   margemDoAnuncio,
   MARGEM_SAUDAVEL,
   formatarBRL,
@@ -404,4 +405,20 @@ test("base zero (item de graca) da margem valida, nao null", () => {
 
 test("o piso da RN-103 e 30%", () => {
   assert.equal(MARGEM_SAUDAVEL, 0.3);
+});
+
+// -- custo congelado de pedido com quantidade (ADR-0002) ---------------------
+
+test("custoNaVenda: unitario x quantidade, em centavos exatos", () => {
+  assert.equal(custoNaVenda("3300.00", 1), "3300.00");
+  // 3300.10 * 3 em ponto flutuante da 9900.299999...; em centavos, 9900.30
+  assert.equal(custoNaVenda("3300.10", 3), "9900.30");
+  assert.equal(custoNaVenda("0.10", 3), "0.30");
+});
+
+test("custoNaVenda: quantidade ou custo invalidos recusam (null), nunca zero", () => {
+  assert.equal(custoNaVenda("3300.00", 0), null);
+  assert.equal(custoNaVenda("3300.00", 1.5), null);
+  assert.equal(custoNaVenda("abc", 1), null);
+  assert.equal(custoNaVenda("-1", 1), null);
 });

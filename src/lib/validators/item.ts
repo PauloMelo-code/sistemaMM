@@ -92,6 +92,17 @@ export const itemSchema = z.object({
     .transform((v) => (v === "" ? null : v)),
 
   situacao: z.enum(SITUACOES_ITEM),
+
+  /**
+   * Unidades em estoque (ADR-0002). Inteiro, zero ou mais: peca unica de
+   * leilao e 1. Zero e legitimo (esgotado), negativo nunca — o banco tambem
+   * recusa (`chk_itens_quantidade_nao_negativa`).
+   */
+  quantidade: z
+    .string()
+    .trim()
+    .regex(/^\d{1,6}$/, "Quantidade invalida. Use um numero inteiro, ex.: 1")
+    .transform(Number),
 });
 
 export type EntradaItem = z.input<typeof itemSchema>;

@@ -84,9 +84,27 @@ test("data ilegivel recusa em vez de virar Invalid Date no banco", () => {
   );
 });
 
+test("le a quantidade de unidades (ADR-0002)", () => {
+  const p = lerPedidoML({
+    ...pedidoOk(),
+    order_items: [{ item: { id: "MLB1" }, quantity: 3, sale_fee: 10 }],
+  });
+  assert.equal(p.quantidade, 3);
+});
+
+test("quantidade ausente ou invalida recusa — assumir 1 baixaria o estoque errado", () => {
+  for (const quantity of [undefined, 0, -1, 1.5, "abc"]) {
+    assert.throws(
+      () => lerPedidoML({ ...pedidoOk(), order_items: [{ item: { id: "MLB1" }, quantity }] }),
+      PedidoMLInvalidoError,
+      `quantity=${String(quantity)}`,
+    );
+  }
+});
+
 test("pedido MULTI-ITEM e recusado — nao existe representacao para ele", () => {
-  // `pedidos.item_id` e NOT NULL e ha unico por item ativo: item de leilao e
-  // peca unica. Processar "so o primeiro" perderia uma venda em silencio.
+  // `pedidos.item_id` e NOT NULL: um pedido e UM item (com N unidades). Dois
+  // anuncios no mesmo pedido nao cabem, e "so o primeiro" perderia uma venda.
   const doisItens = {
     ...pedidoOk(),
     order_items: [

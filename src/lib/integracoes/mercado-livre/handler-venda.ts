@@ -10,9 +10,10 @@
  *  2. **A conta precisa ser a nossa.** Pedido de outro vendedor e descartado.
  *  3. **Uma transacao, com `FOR UPDATE` no item** (RN-112). Dois webhooks
  *     simultaneos viram fila, nao corrida.
- *  4. **O indice unico e quem garante.** Se a serializacao falhar por qualquer
- *     motivo, o segundo INSERT levanta 23505 — e isso e tratado como
- *     "ja vendido", nao como erro 500.
+ *  4. **O banco e quem garante** (ADR-0002). A venda baixa `itens.quantidade`
+ *     no mesmo commit do pedido, e o `CHECK (quantidade >= 0)` recusa vender
+ *     unidade que nao existe (23514) — tratado como "sem estoque", nao 500.
+ *     So a venda que ZERA o item o marca como vendido e pausa os outros canais.
  *  5. **A pausa nos outros canais vira TAREFA no mesmo commit** (RN-116), nunca
  *     chamada HTTP dentro da transacao.
  *  6. **Reprocessar e no-op** (RN-104): o mesmo pedido chegando de novo nao
@@ -24,7 +25,7 @@ import { db } from "@/lib/db";
 import { anuncios } from "@/lib/db/schema/anuncios";
 import { itens } from "@/lib/db/schema/itens";
 import { pedidos } from "@/lib/db/schema/pedidos";
-import { resultadoDaVenda } from "@/lib/pricing";
+import { custoNaVenda, resultadoDaVenda } from "@/lib/pricing";
 
 import { chamarML } from "./client";
 import { lerPedidoML, STATUS_PAGO, type PedidoML } from "./pedido-ml";
@@ -33,8 +34,9 @@ import { ErroPermanente, codigoPostgres } from "../retentativa";
 import { USUARIO_SISTEMA_ID } from "../usuario-sistema";
 import type { EventoParaHandler } from "../handlers";
 
-/** Código do Postgres para violacao de indice unico. */
+/** Códigos do Postgres: violacao de indice unico e de CHECK. */
 const VIOLACAO_UNICO = "23505";
+const VIOLACAO_CHECK = "23514";
 
 /**
  * Venda que o sistema olhou e decidiu nao registrar.
@@ -111,7 +113,12 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
       // chegariam juntos no INSERT e um levaria 23505 — que funciona, mas vira
       // excecao onde cabia fila.
       const [item] = await tx
-        .select({ id: itens.id, custo: itens.custo, situacao: itens.situacao })
+        .select({
+          id: itens.id,
+          custo: itens.custo,
+          situacao: itens.situacao,
+          quantidade: itens.quantidade,
+        })
         .from(itens)
         .where(and(eq(itens.id, local.itemId), eq(itens.is_deleted, false)))
         .for("update");
@@ -126,6 +133,24 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
         .where(and(eq(pedidos.canal, "mercado_livre"), eq(pedidos.numero, pedido.numero)));
       if (jaExiste) return "ja_registrada" as const;
 
+      // RN-112, camada 2: com a linha travada, a conta e exata. Faltando
+      // unidade, outra venda chegou antes — e nao ha o que dar baixa.
+      if (item.quantidade < pedido.quantidade) {
+        throw new VendaIgnorada(
+          `Estoque insuficiente para o pedido ${pedido.numero}: pediu ${pedido.quantidade}, ` +
+            `restam ${item.quantidade}. Venda concorrente — decisao COMERCIAL: cancelar no ` +
+            "canal perdedor e avisar o Anderson (RN-112).",
+        );
+      }
+
+      // RN-114: o custo e CONGELADO aqui, ja multiplicado pelas unidades.
+      // Corrigir `itens.custo` amanha nao pode reescrever um mes ja fechado.
+      const custoDoPedido = custoNaVenda(item.custo, pedido.quantidade);
+      if (!custoDoPedido) {
+        throw new Error(`Custo do item ${item.id} nao forma numero valido (${item.custo}).`);
+      }
+      const restante = item.quantidade - pedido.quantidade;
+
       const [criado] = await tx
         .insert(pedidos)
         .values({
@@ -133,9 +158,8 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
           item_id: item.id,
           canal: "mercado_livre",
           vendido_em: pedido.vendidoEm,
-          // RN-114: o custo e CONGELADO aqui. Corrigir `itens.custo` amanha nao
-          // pode reescrever a margem de um mes ja fechado.
-          custo_na_venda: item.custo,
+          quantidade: pedido.quantidade,
+          custo_na_venda: custoDoPedido,
           valor: pedido.valor.toFixed(2),
           taxa: dinheiro.taxa.toFixed(2),
           taxa_origem: pedido.taxaInformada === null ? null : pedido.taxaInformada.toFixed(2),
@@ -148,23 +172,26 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
         })
         .returning({ id: pedidos.id });
 
-      // RN-104: baixa no estoque E saida do site publico, no MESMO update.
+      // RN-112, camada 1: a baixa e `quantidade - N` NO BANCO, nao o numero
+      // calculado acima. Se algo furou a trava da linha, o resultado negativo
+      // esbarra no CHECK e o Postgres recusa (23514, tratado abaixo).
       //
+      // RN-104: quando zera, baixa E saida do site publico no MESMO update.
       // Tirar do site e operacao INTERNA (`itens.exibir_no_site`), sem API de
-      // terceiro — entao ela pertence a esta transacao, nao ao outbox. Enfileirar
-      // como tarefa (que foi o desenho inicial) criava uma janela em que o item
-      // estava vendido e AINDA NO AR na vitrine, esperando um worker, sem motivo
-      // nenhum. O outbox existe para o que sai para fora; o que e nosso resolve
-      // aqui, atomico.
+      // terceiro — entao pertence a esta transacao, nao ao outbox. Enfileirar
+      // como tarefa criava uma janela com o item vendido e AINDA NA VITRINE.
       await tx
         .update(itens)
         .set({
-          situacao: "vendido",
-          exibir_no_site: false,
+          quantidade: sql`${itens.quantidade} - ${pedido.quantidade}`,
+          ...(restante === 0 ? { situacao: "vendido" as const, exibir_no_site: false } : {}),
           updated_at: new Date(),
           modified_by: USUARIO_SISTEMA_ID,
         })
         .where(eq(itens.id, item.id));
+
+      // Ainda ha unidades: os outros canais continuam vendendo (ADR-0002).
+      if (restante > 0) return "registrada" as const;
 
       // RN-104 + RN-116: o que precisa sair para OUTRO SISTEMA vira tarefa, no
       // mesmo commit. Nunca HTTP aqui dentro — transacao aberta esperando
@@ -195,20 +222,24 @@ export async function registrarVendaML(pedido: PedidoML): Promise<"registrada" |
       return "registrada" as const;
     });
   } catch (erro) {
-    // CAMADA 4: a garantia final. Se a serializacao falhou por qualquer motivo,
-    // o indice unico parcial `idx_pedidos_item_ativo` levanta 23505 — e isso
-    // significa "esta peca ja foi vendida", nao falha de sistema. Vira erro
-    // tratado e o evento sai da fila em vez de ficar retentando para sempre.
+    // A garantia final, quando a serializacao falhou por qualquer motivo.
     //
     // `codigoPostgres` anda a cadeia de `cause`: o drizzle EMBRULHA o erro do
-    // driver, entao `erro.code` no topo e undefined e o 23505 mora la embaixo.
+    // driver, entao `erro.code` no topo e undefined e o codigo mora la embaixo.
     // Testar so o topo deixava a violacao escapar como erro generico.
-    if (codigoPostgres(erro) === VIOLACAO_UNICO) {
+    const codigo = codigoPostgres(erro);
+
+    // 23514 = o CHECK de `itens.quantidade` recusou ficar negativo: a ultima
+    // unidade foi para outra venda (RN-112). Vira erro tratado e sai da fila.
+    if (codigo === VIOLACAO_CHECK) {
       throw new VendaIgnorada(
-        `Item do anuncio ${pedido.idAnuncio} ja tem pedido ativo — venda concorrente em outro ` +
-          "canal. Decisao COMERCIAL: cancelar no canal perdedor e avisar o Anderson (RN-112).",
+        `Item do anuncio ${pedido.idAnuncio} sem unidades — venda concorrente em outro canal. ` +
+          "Decisao COMERCIAL: cancelar no canal perdedor e avisar o Anderson (RN-112).",
       );
     }
+    // 23505 so vem de `idx_pedidos_canal_numero`: o MESMO pedido processado em
+    // paralelo. O outro processo ja registrou — e reentrega, nao venda nova.
+    if (codigo === VIOLACAO_UNICO) return "ja_registrada";
     throw erro;
   }
 }

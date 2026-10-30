@@ -42,12 +42,13 @@ export function FiltrosEstoque({ kpis, segmentos, segmento, situacao }: FiltrosE
     filtra?: SituacaoItem;
     alerta?: boolean;
   }> = [
-    { rotulo: "Disponíveis", valor: kpis.disponiveis },
+    // Unidades, nao itens (ADR-0002): o rele de 19 conta 19.
+    { rotulo: "Unidades disponíveis", valor: kpis.disponiveis },
     // Ambar: item parado sem anuncio e dinheiro que nao esta girando — alerta
     // de verdade, nao decoracao (design-system.md).
     { rotulo: "Sem anúncio", valor: kpis.semAnuncio, filtra: "sem_anuncio", alerta: true },
     { rotulo: "Reservados", valor: kpis.reservados, filtra: "reservado" },
-    { rotulo: "Vendidos no mês", valor: kpis.vendidosNoMes, filtra: "vendido" },
+    { rotulo: "Unidades vendidas no mês", valor: kpis.vendidosNoMes, filtra: "vendido" },
   ];
 
   return (

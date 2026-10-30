@@ -320,6 +320,22 @@ export function resultadoDaVenda({
   };
 }
 
+/**
+ * Custo CONGELADO de um pedido (`pedidos.custo_na_venda`): custo unitario do
+ * item x unidades vendidas (ADR-0002).
+ *
+ * Recebe e devolve o `numeric` como TEXTO, e a conta e feita em centavos
+ * inteiros: `3300.10 * 3` em ponto flutuante da `9900.299999…`, e o centavo
+ * errado ficaria gravado para sempre no mes fechado. `null` para entrada que
+ * nao forma dinheiro — quem chama recusa a venda em vez de gravar zero.
+ */
+export function custoNaVenda(custoUnitario: string, quantidade: number): string | null {
+  const reais = Number(custoUnitario);
+  if (!valorValido(reais) || !Number.isInteger(quantidade) || quantidade < 1) return null;
+  const centavos = Math.round(reais * 100) * quantidade;
+  return (centavos / 100).toFixed(2);
+}
+
 const BRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",

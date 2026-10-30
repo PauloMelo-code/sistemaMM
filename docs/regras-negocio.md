@@ -145,6 +145,9 @@ Cada regra segue este formato:
 - **Modulo**: Estoque, Anuncios, Integracoes, Site
 - **Descricao**: item vendido em qualquer canal (ML, OLX, WhatsApp) da baixa
   automatica e **pausa o anuncio nos outros canais**; tambem sai do site publico.
+  Com quantidade (RN-112, revista em 2026-10-29): cada venda baixa as unidades
+  vendidas, e a pausa nos outros canais e a saida do site so acontecem quando
+  a quantidade **zera**.
 - **Comportamento esperado**: acao unica e idempotente, disparada pelo webhook de
   venda; registra na auditoria. Reprocessar o mesmo evento nao pode pausar duas
   vezes nem gerar erro.
@@ -243,31 +246,46 @@ Cada regra segue este formato:
   de pagamento sem decisao de produto.
 - **Impacto se descumprida**: semanas gastas num fluxo que esse comprador nao usa.
 
-### RN-112 - Um item so pode ser vendido UMA vez (compra simultanea)
+### RN-112 - Nunca vender mais unidades do que existem (compra simultanea)
 - **Definida por**: Paulo/Anderson (contrato Orbital x MM Solucoes)
-- **Data**: 2026-08-10
+- **Data**: 2026-08-10 · **revista em 2026-10-29** (ADR-0002)
 - **Modulo**: Pedidos, Estoque, Integracoes
-- **Descricao**: todo item e **peca unica de leilao** e fica anunciado em varios
-  canais ao mesmo tempo. Dois compradores podem fechar no mesmo instante — um no
-  ML, outro na OLX — e os dois webhooks chegam quase juntos. Existe UMA peca.
+- **Descricao**: o item fica anunciado em varios canais ao mesmo tempo, e dois
+  compradores podem fechar no mesmo instante. Ate 2026-10-29 todo item era
+  **peca unica**; a importacao do ML mostrou que nao e: o rele tem 19 unidades,
+  e varios anuncios ja venderam 3 ou 4. O item agora tem **`quantidade`**
+  (unidades em estoque), e a regra passa a ser: **nenhuma venda deixa a
+  quantidade negativa**. Peca unica e o caso `quantidade = 1`.
 - **Comportamento esperado**: **tres camadas**, nesta ordem:
-  1. **Banco (garantia).** Indice unico parcial `idx_pedidos_item_ativo` em
-     `pedidos(item_id) WHERE is_deleted = false AND status <> 'cancelado'`.
-     O segundo INSERT levanta `23505` — nao ha janela possivel.
+  1. **Banco (garantia).** `CHECK (quantidade >= 0)` em `itens`. A venda baixa
+     a quantidade no MESMO commit em que grava o pedido. Se duas vendas
+     disputarem a ultima unidade, a segunda leva a quantidade a -1 e o
+     Postgres recusa (`23514`) — nao ha janela possivel.
   2. **Aplicacao (serializacao).** O handler de venda abre transacao e trava a
-     linha do item com `SELECT ... FOR UPDATE` antes de decidir. Isso faz os
-     dois webhooks concorrentes virarem fila em vez de corrida, e transforma o
-     erro bruto num caminho tratado.
-  3. **Tratamento.** Ao pegar `23505` nesse indice, a resposta NAO e erro 500: e
-     "item ja vendido no canal X". O pedido perdedor precisa virar cancelamento
-     no canal de origem e alerta para o Anderson — decisao comercial, nao tecnica.
-- **Verificado**: `scripts/db/prova-compra-simultanea.sql` (5/5 no banco real).
+     linha do item com `SELECT ... FOR UPDATE`, confere se ha unidades
+     suficientes e so entao grava. Os webhooks concorrentes viram fila.
+  3. **Tratamento.** Sem unidades suficientes (ou `23514`), a resposta NAO e
+     erro 500: e "estoque insuficiente — venda concorrente". O pedido perdedor
+     precisa virar cancelamento no canal de origem e alerta para o Anderson —
+     decisao comercial, nao tecnica.
+- **Quando zera**: so na venda que leva a quantidade a **0** o item vira
+  `vendido`, sai do site e os anuncios dos outros canais sao pausados (RN-104).
+  Antes disso, cada venda so baixa unidades.
+- **Custo congelado**: `pedidos.custo_na_venda` = custo unitario do item x
+  quantidade vendida, calculado em `pricing.ts` (`custoNaVenda`).
+- **O que a garantia NAO cobre**: ela depende de a gravacao do pedido andar
+  junto com a baixa, e quem garante isso e o handler. Um `INSERT` em `pedidos`
+  sem a baixa (como a importacao do historico, que nao deve baixar o que o ML
+  ja descontou) passa pelo banco. O indice antigo, `idx_pedidos_item_ativo`,
+  barrava qualquer segundo pedido, inclusive os legitimos, e por isso saiu.
+- **Verificado**: `scripts/db/prova-compra-simultanea.sql`, reescrita para o
+  modelo com quantidade.
 - **Corolario**: cancelamento **nao e exclusao logica**. Pedido cancelado usa
-  `status = 'cancelado'`, continua no relatorio e libera o item para revenda.
-  Usar `is_deleted` para cancelar apagaria a venda do historico fiscal.
-- **Impacto se descumprida**: a mesma peca vendida duas vezes. Um comprador nao
+  `status = 'cancelado'` e continua no relatorio. **Devolver a unidade ao
+  estoque no cancelamento ainda nao existe** — nao ha fluxo de cancelamento.
+- **Impacto se descumprida**: vender unidade que nao existe. Um comprador nao
   recebe, cancela no ML, e a reputacao — que e o ativo mais fragil da operacao —
-  cai. Com ticket alto, um caso ja e prejuizo relevante.
+  cai.
 
 ### RN-113 - A venda congela o custo e a propria data
 - **Definida por**: Paulo (analise de corretude 2026-08-10)

@@ -22,3 +22,4 @@ numerado e imutavel — se a decisao muda, cria-se um novo ADR que supersede o a
 | ADR | Titulo | Status |
 |-----|--------|--------|
 | [0001](0001-stack-base.md) | Stack base: Next.js + Drizzle + PostgreSQL | Aceito |
+| [0002](0002-item-com-quantidade.md) | Item com quantidade; trava de venda vira "nunca negativo" | Aceito |
