@@ -27,6 +27,7 @@ import { itens } from "@/lib/db/schema/itens";
 import { pedidos } from "@/lib/db/schema/pedidos";
 import { custoNaVenda, resultadoDaVenda } from "@/lib/pricing";
 
+import { atualizarPedidoML } from "./atualizacao-envios";
 import { chamarML } from "./client";
 import { lerPedidoML, STATUS_PAGO, type PedidoML } from "./pedido-ml";
 import { enfileirar, type NovaTarefa } from "../tarefas";
@@ -264,6 +265,12 @@ export async function handlerVendaML(evento: EventoParaHandler): Promise<void> {
   const bruto = await chamarML<unknown>(evento.recurso, { lane: "urgente" });
   const pedido = lerPedidoML(bruto);
 
+  // Pedido que JA existe aqui: a notificacao e de mudanca (envio, entrega,
+  // cancelamento). Atualiza o status e para — nao e venda nova.
+  if ((await atualizarPedidoML(pedido.numero, { lane: "urgente", pedidoBruto: bruto })) !== "ausente") {
+    return;
+  }
+
   // RN-117: descartar o que nao e da conta conectada. Sem esta checagem, um
   // POST forjado apontando para um pedido de OUTRO vendedor faria o sistema
   // dar baixa num item nosso por causa de uma venda que nao e nossa.
@@ -285,6 +292,12 @@ export async function handlerVendaML(evento: EventoParaHandler): Promise<void> {
   }
 
   await registrarVendaML(pedido);
+
+  // Grava o envio e o status de saida. Falhar aqui NAO desfaz a venda (ja
+  // comitada): a conferencia de 15 min corrige na proxima passada.
+  await atualizarPedidoML(pedido.numero, { lane: "urgente", pedidoBruto: bruto }).catch((erro) =>
+    console.warn(`[venda-ml] pedido ${pedido.numero}: status de envio fica para a conferencia`, erro),
+  );
 }
 
 /** Id da conta do ML hoje conectada. `null` quando nao ha credencial. */

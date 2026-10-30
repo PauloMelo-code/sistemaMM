@@ -431,6 +431,28 @@ venda.
   envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
   elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
 
+### 🟡 Status de envio dos pedidos do ML — pronto; devolucao ainda nao (2026-10-29)
+- **Arquivo(s):**
+  - `src/lib/integracoes/mercado-livre/{envio-ml,atualizacao-envios}.ts`
+  - o handler de venda e o topico `shipments` em `handlers.ts`
+  - a rota `reconciliar`
+  - a migracao `0016` (`pedidos.id_envio_externo`)
+- **Como atualiza:**
+  - **Conferencia a cada 15 min:** atualiza ate 100 pedidos em aberto por
+    passada. O historico se corrige assim.
+  - **Notificacao `shipments`:** precisa do topico marcado no DevCenter.
+  - **Notificacao `orders_v2` de pedido que ja existe:** antes era ignorada.
+- **Traducao conservadora** (`envio-ml.ts`): a doc nao tem tabela oficial de
+  status.
+  - `not_delivered` e envio `cancelled` **nao mudam** o pedido, porque o
+    segundo pode ser venda enviada por fora do ML.
+  - So pedido `cancelled` no ML vira cancelado.
+- **⚠️ Cancelado nao devolve a unidade ao estoque.** Pedido cancelado antes do
+  envio (o comprador desistiu) sai do faturamento, mas a quantidade do item
+  continua baixada. Entra junto com o fluxo de devolucao (proxima entrega).
+- **NAO verificado:** a resposta real de `/shipments` com `x-format-new`. Ela
+  foi lida a partir da documentacao.
+
 ### 🟡 Vinculo anuncio do ML -> Estoque (RN-124) — pronto, com ressalvas (2026-10-29)
 - **Arquivo(s):** `src/lib/integracoes/mercado-livre/vinculo.ts` (plano, puro),
   `src/lib/pricing.ts` (`ratearCustoDoLote`), `src/lib/actions/vinculo-ml.ts`,

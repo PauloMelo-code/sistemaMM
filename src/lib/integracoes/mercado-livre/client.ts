@@ -61,6 +61,8 @@ export interface OpcoesChamada {
   lane?: Lane;
   metodo?: "GET" | "POST" | "PUT";
   corpo?: unknown;
+  /** Cabecalhos extras. O ML exige `x-format-new: true` em `/shipments` desde 12/10/2025. */
+  cabecalhos?: Record<string, string>;
 }
 
 export class ErroML extends Error {
@@ -83,7 +85,7 @@ export class ErroML extends Error {
  */
 export async function chamarML<T = unknown>(
   caminho: string,
-  { lane = "varredura", metodo = "GET", corpo }: OpcoesChamada = {},
+  { lane = "varredura", metodo = "GET", corpo, cabecalhos = {} }: OpcoesChamada = {},
 ): Promise<T> {
   const base = process.env.ML_API_BASE ?? "https://api.mercadolibre.com";
   const url = `${base}${caminho}`;
@@ -102,6 +104,8 @@ export async function chamarML<T = unknown>(
         resposta = await fetch(url, {
           method: metodo,
           headers: {
+            ...cabecalhos,
+            // Depois dos extras: nenhum chamador sobrescreve o token por engano.
             authorization: `Bearer ${token}`,
             accept: "application/json",
             ...(corpo === undefined ? {} : { "content-type": "application/json" }),

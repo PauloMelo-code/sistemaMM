@@ -71,6 +71,12 @@ HANDLERS.set(chaveHandler("mercado_livre", "orders_v2"), async (evento) => {
   await handlerVendaML(evento);
 });
 
+// Envio mudou de estado (saiu, entregou) — o status do pedido acompanha.
+HANDLERS.set(chaveHandler("mercado_livre", "shipments"), async (evento) => {
+  const { handlerEnvioML } = await import("./mercado-livre/atualizacao-envios");
+  await handlerEnvioML(evento);
+});
+
 // Pergunta nova (ou respondida pelo painel do ML) — RN-105. Mesmo motivo do
 // `import` dinamico acima.
 HANDLERS.set(chaveHandler("mercado_livre", "questions"), async (evento) => {

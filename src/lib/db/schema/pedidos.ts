@@ -127,6 +127,11 @@ export const pedidos = pgTable(
     nfe_chave: text("nfe_chave"),
     etapa_expedicao: etapaExpedicaoEnum("etapa_expedicao").notNull().default("aguardando_nfe"),
     rastreio: text("rastreio"),
+    /**
+     * Id do envio no canal (`shipping.id` do pedido do ML). E o que liga a
+     * notificacao `shipments` — que so traz o envio — ao pedido daqui.
+     */
+    id_envio_externo: text("id_envio_externo"),
     status: statusPedidoEnum("status").notNull().default("aguardando_envio"),
 
     // --- colunas de auditoria OBRIGATORIAS (nunca omitir) ---
@@ -159,6 +164,7 @@ export const pedidos = pgTable(
     // ultima unidade levam a -1 e o banco recusa. Ver RN-112.
     // ===================================================================
     itemIdx: index("idx_pedidos_item").on(t.item_id),
+    envioExternoIdx: index("idx_pedidos_envio_externo").on(t.id_envio_externo),
     // Pedido de zero unidades nao e venda.
     quantidadePositiva: check("chk_pedidos_quantidade_positiva", sql`${t.quantidade} >= 1`),
     // Todo relatorio filtra e agrupa por periodo de VENDA (mes fechado,

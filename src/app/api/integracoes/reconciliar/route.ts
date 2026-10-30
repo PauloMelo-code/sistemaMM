@@ -12,6 +12,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { atualizarEnviosPendentes } from "@/lib/integracoes/mercado-livre/atualizacao-envios";
 import { reconciliarPedidosML } from "@/lib/integracoes/mercado-livre/reconciliacao";
 
 export const runtime = "nodejs";
@@ -33,8 +34,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: "nao encontrado" }, { status: 404 });
   }
 
+  // Status de envio dos pedidos em aberto. Independente da reconciliacao: uma
+  // falha numa nao impede a outra, e os dois resultados voltam na resposta.
+  const envios = await atualizarEnviosPendentes().catch((erro) => {
+    console.error("[envios] falhou", erro);
+    return { erro: erro instanceof Error ? erro.message : String(erro) };
+  });
+
   try {
-    return NextResponse.json(await reconciliarPedidosML(), { status: 200 });
+    return NextResponse.json({ ...(await reconciliarPedidosML()), envios }, { status: 200 });
   } catch (erro) {
     // O desfecho ja foi gravado em `integracoes_sincronizacoes` — inclusive o
     // erro — entao o alarme de obsolescencia enxerga a falha mesmo que ninguem
