@@ -92,6 +92,13 @@
       "when": 1793317782239,
       "tag": "0012_first_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793319691279,
+      "tag": "0013_boring_riptide",
+      "breakpoints": true
     }
   ]
 }

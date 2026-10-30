@@ -14,6 +14,10 @@ import {
   importarAnunciosML,
   type ResumoImportacao,
 } from "@/lib/integracoes/mercado-livre/importacao-anuncios";
+import {
+  importarPerguntasML,
+  type ResumoPerguntas,
+} from "@/lib/integracoes/mercado-livre/importacao-perguntas";
 import { ReautorizacaoNecessariaError, SemCredencialError } from "@/lib/integracoes/mercado-livre/token";
 
 export type ResultadoImportacao =
@@ -33,15 +37,37 @@ export async function importarAnunciosAgora(): Promise<ResultadoImportacao> {
     revalidatePath("/integracoes");
     return { ok: true, resumo };
   } catch (erro) {
-    console.error("[importacao-ml] falhou — nada foi gravado", erro);
-    if (erro instanceof SemCredencialError || erro instanceof ReautorizacaoNecessariaError) {
-      return { ok: false, erro: "A conta do Mercado Livre precisa ser conectada de novo." };
-    }
-    // A mensagem do ML ajuda quem esta na tela a entender (ex.: 403 de
-    // permissao do app). Nunca contem token: o client mascara.
-    return {
-      ok: false,
-      erro: `A importação falhou e nada foi gravado. ${erro instanceof Error ? erro.message : ""}`.trim(),
-    };
+    return { ok: false, erro: explicarFalha(erro) };
   }
+}
+
+export type ResultadoPerguntas = { ok: true; resumo: ResumoPerguntas } | { ok: false; erro: string };
+
+/**
+ * Botao "Buscar perguntas do ML" da tela Perguntas. Quem pode responder pode
+ * buscar: `perguntas: criar` (administrador e operador).
+ */
+export async function importarPerguntasAgora(): Promise<ResultadoPerguntas> {
+  const sessao = await lerSessao();
+  if (!sessao) return { ok: false, erro: "Sessão expirada. Entre de novo." };
+  if (!temPermissao(sessao.papel, "perguntas", "criar")) {
+    return { ok: false, erro: "Você não tem permissão para buscar perguntas." };
+  }
+
+  try {
+    const resumo = await importarPerguntasML(sessao.usuarioId);
+    revalidatePath("/perguntas");
+    return { ok: true, resumo };
+  } catch (erro) {
+    return { ok: false, erro: explicarFalha(erro) };
+  }
+}
+
+/** Frase para a tela. A mensagem do ML ajuda (ex.: 403 de permissao do app) e nunca traz token. */
+function explicarFalha(erro: unknown): string {
+  console.error("[importacao-ml] falhou — nada foi gravado", erro);
+  if (erro instanceof SemCredencialError || erro instanceof ReautorizacaoNecessariaError) {
+    return "A conta do Mercado Livre precisa ser conectada de novo.";
+  }
+  return `A importação falhou e nada foi gravado. ${erro instanceof Error ? erro.message : ""}`.trim();
 }

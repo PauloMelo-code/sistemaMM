@@ -33,6 +33,12 @@ export const perguntas = pgTable(
     item_id: uuid("item_id")
       // FK com RESTRICT — NUNCA cascade em dado critico
       .references(() => itens.id, { onDelete: "restrict" }),
+    /**
+     * Anuncio do canal em que a pergunta foi feita (`MLB...`). E o que permite
+     * mostrar o produto antes do vinculo com o Estoque (RN-123) e, no vinculo,
+     * preencher `item_id` sem adivinhar.
+     */
+    id_anuncio_externo: text("id_anuncio_externo"),
     texto: text("texto").notNull(),
     resposta: text("resposta"),
     respondida_em: timestamp("respondida_em"),
@@ -62,6 +68,7 @@ export const perguntas = pgTable(
       .on(t.prazo_sla)
       .where(sql`${t.status} = 'pendente' AND ${t.is_deleted} = false`),
     itemIdx: index("idx_perguntas_item").on(t.item_id),
+    anuncioExternoIdx: index("idx_perguntas_anuncio_externo").on(t.id_anuncio_externo),
     naoDeletadosIdx: index("idx_perguntas_ativos").on(t.is_deleted),
   })
 );

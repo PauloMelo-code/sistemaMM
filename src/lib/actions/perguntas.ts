@@ -9,6 +9,7 @@
 import { sql, eq, and } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { integracoesMlAnuncios } from "@/lib/db/schema/integracoes-ml-anuncios";
 import { itens } from "@/lib/db/schema/itens";
 import { perguntas } from "@/lib/db/schema/perguntas";
 import type { Canal } from "@/lib/pricing";
@@ -65,7 +66,9 @@ export async function listarPerguntas(): Promise<FilaPerguntas> {
       id: perguntas.id,
       canal: perguntas.canal,
       texto: perguntas.texto,
-      item: itens.nome,
+      // Sem item vinculado, o titulo do anuncio importado do ML (RN-123): a
+      // pergunta chega antes do vinculo, e "—" nao diz do que se trata.
+      item: sql<string | null>`coalesce(${itens.nome}, ${integracoesMlAnuncios.titulo})`.as("item"),
       status: perguntas.status,
       // `EXTRACT(EPOCH FROM ...)` devolve `numeric`, que o driver `pg` entrega
       // como STRING (precisao arbitraria nao cabe em number sem perda). O cast
@@ -84,6 +87,14 @@ export async function listarPerguntas(): Promise<FilaPerguntas> {
     // sem item). INNER esconderia essas perguntas da fila — some do painel uma
     // pergunta que o SLA continua contando.
     .leftJoin(itens, and(eq(itens.id, perguntas.item_id), eq(itens.is_deleted, false)))
+    .leftJoin(
+      integracoesMlAnuncios,
+      and(
+        eq(perguntas.canal, "mercado_livre"),
+        eq(integracoesMlAnuncios.id_externo, perguntas.id_anuncio_externo),
+        eq(integracoesMlAnuncios.is_deleted, false),
+      ),
+    )
     .where(eq(perguntas.is_deleted, false))
     .orderBy(
       sql`${perguntas.status} = 'respondida'`, // false < true: pendentes primeiro

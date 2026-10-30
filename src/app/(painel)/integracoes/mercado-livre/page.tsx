@@ -25,6 +25,7 @@ const STATUS: Record<string, { rotulo: string; classe: string }> = {
   active: { rotulo: "Ativo", classe: "bg-success-soft text-success" },
   paused: { rotulo: "Pausado", classe: "bg-warning-soft text-warning-text" },
   closed: { rotulo: "Encerrado", classe: "bg-table-head text-ink-2" },
+  inactive: { rotulo: "Inativo", classe: "bg-table-head text-ink-2" },
   under_review: { rotulo: "Em revisão", classe: "bg-warning-soft text-warning-text" },
 };
 

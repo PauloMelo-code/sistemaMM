@@ -15,10 +15,13 @@
  * 3. **Sem coluna Margem para o operador** (RN-107) — e o campo nem chega ao
  *    navegador. Ver `actions/anuncios.ts`.
  */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { listarAnuncios, ORDENS_ANUNCIOS, type StatusAnuncio } from "@/lib/actions/anuncios";
+import { contarAnunciosImportados } from "@/lib/actions/integracoes";
 import { CabecalhoOrdenavel, lerOrdem } from "@/components/ui/cabecalho-ordenavel";
+import { temPermissao } from "@/lib/auth/rbac";
 import { lerSessao } from "@/lib/auth/sessao";
 import { formatarBRL, MARGEM_SAUDAVEL, type Canal } from "@/lib/pricing";
 
@@ -60,12 +63,15 @@ export default async function AnunciosPage({
 
   const { ordem, direcao } = lerOrdem(ORDENS_ANUNCIOS, params.ordem, params.dir);
 
-  const { anuncios, margemOculta, margemIgnoraFrete } = await listarAnuncios(sessao.papel, {
-    canal,
-    status,
-    ordem,
-    direcao,
-  });
+  // Os importados do ML moram fora daqui ate o vinculo com o Estoque (RN-123).
+  // O link existe para que eles nao fiquem escondidos atras do card de
+  // Integracoes — e so para quem pode abrir aquela tela.
+  const verImportados = temPermissao(sessao.papel, "integracoes", "ler");
+
+  const [{ anuncios, margemOculta, margemIgnoraFrete }, importados] = await Promise.all([
+    listarAnuncios(sessao.papel, { canal, status, ordem, direcao }),
+    verImportados ? contarAnunciosImportados() : Promise.resolve(0),
+  ]);
 
   /** Filtros de canal/status preservados ao trocar a ordem. */
   const filtrosAtuais = { canal, status };
@@ -74,12 +80,24 @@ export default async function AnunciosPage({
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-0.5">
-        <h1 className="font-display text-[22px] font-bold text-navy">Anúncios</h1>
-        <span className="text-[13px] text-ink-2">
-          {anuncios.length} anúncio{anuncios.length === 1 ? "" : "s"}
-          {canal || status ? " no filtro atual" : " · todos os canais"}
-        </span>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="font-display text-[22px] font-bold text-navy">Anúncios</h1>
+          <span className="text-[13px] text-ink-2">
+            {anuncios.length} anúncio{anuncios.length === 1 ? "" : "s"}
+            {canal || status ? " no filtro atual" : " · todos os canais"}
+          </span>
+        </div>
+        {verImportados && (
+          <Link
+            href="/integracoes/mercado-livre"
+            className="rounded-button border border-border px-4 py-2 text-[13px] font-medium text-ink foco"
+          >
+            {importados > 0
+              ? `Importados do Mercado Livre (${importados}) →`
+              : "Importar do Mercado Livre →"}
+          </Link>
+        )}
       </header>
 
       <ChipsFiltro canal={canal} status={status} />

@@ -431,6 +431,26 @@ venda.
   envios", "Comunicacao pre e pos-venda" e "Publicacao e sincronizacao". Sem
   elas, a API responde 403 (ver `docs/ml-api-notas.md` §5).
 
+### 🟡 Perguntas do ML entram na caixa — responder ainda nao (2026-10-29)
+- **Arquivo(s):** `src/lib/integracoes/mercado-livre/{pergunta-ml,importacao-perguntas}.ts`,
+  `src/lib/integracoes/handlers.ts` (topico `questions`), migracao `0013`
+  (`perguntas.id_anuncio_externo`)
+- **Como chega:** de dois jeitos.
+  - Pelo botao "Buscar perguntas do ML" na tela Perguntas, que traz as 500 mais
+    recentes.
+  - Pela notificacao `questions`, que o worker agora processa.
+  - Em PRD havia notificacoes `questions` paradas na fila desde a conexao: o
+    worker as processa sozinho depois do deploy.
+- **O prazo do SLA sai da hora em que o comprador perguntou** (`date_created` do
+  ML), e `created_at` recebe essa mesma hora. Importar hoje uma pergunta de
+  ontem nao pode parecer resposta instantanea.
+- **Sem item vinculado**, a tela mostra o titulo do anuncio importado
+  (`integracoes_ml_anuncios`).
+- **Fica para depois:** responder pelo painel (`POST /answers`, escrita no ML) e
+  preencher `item_id` no vinculo com o Estoque.
+- **⚠️ Escrito a partir da documentacao.** Conferir o formato na primeira busca
+  real.
+
 ### 🟡 Importacao dos anuncios do ML — etapa 1 pronta, vinculo pendente (RN-123)
 - **Arquivo(s):** `src/lib/integracoes/mercado-livre/{item-ml,importacao-anuncios}.ts`,
   `src/lib/actions/importacao-ml.ts`, `src/app/(painel)/integracoes/mercado-livre/page.tsx`,

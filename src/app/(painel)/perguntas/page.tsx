@@ -7,9 +7,14 @@
  * Server component: busca a fila e resolve a ordem. Nao ha custo nesta tela,
  * entao a RN-107 nao filtra nada aqui.
  */
+import { redirect } from "next/navigation";
+
 import { listarPerguntas } from "@/lib/actions/perguntas";
+import { temPermissao } from "@/lib/auth/rbac";
+import { lerSessao } from "@/lib/auth/sessao";
 import { META_SLA_HORAS } from "@/lib/sla";
 
+import { BotaoBuscarPerguntasML } from "./_components/botao-buscar-ml";
 import { ListaPerguntas } from "./_components/lista-perguntas";
 
 /**
@@ -49,15 +54,21 @@ const MODELOS = [
 ];
 
 export default async function PerguntasPage() {
+  const sessao = await lerSessao();
+  if (!sessao) redirect("/login");
+
   const { perguntas, truncada } = await listarPerguntas();
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-0.5">
-        <h1 className="font-display text-[22px] font-bold text-navy">Perguntas</h1>
-        <span className="text-[13px] text-ink-2">
-          Caixa unificada · Mercado Livre, OLX e WhatsApp · meta de resposta: {META_SLA_HORAS}h
-        </span>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="font-display text-[22px] font-bold text-navy">Perguntas</h1>
+          <span className="text-[13px] text-ink-2">
+            Caixa unificada · Mercado Livre, OLX e WhatsApp · meta de resposta: {META_SLA_HORAS}h
+          </span>
+        </div>
+        {temPermissao(sessao.papel, "perguntas", "criar") && <BotaoBuscarPerguntasML />}
       </header>
 
       {/* Grid 1.4fr 1fr do handoff (design-system.md > grids.perguntas) a partir

@@ -70,3 +70,10 @@ HANDLERS.set(chaveHandler("mercado_livre", "orders_v2"), async (evento) => {
   const { handlerVendaML } = await import("./mercado-livre/handler-venda");
   await handlerVendaML(evento);
 });
+
+// Pergunta nova (ou respondida pelo painel do ML) — RN-105. Mesmo motivo do
+// `import` dinamico acima.
+HANDLERS.set(chaveHandler("mercado_livre", "questions"), async (evento) => {
+  const { handlerPerguntaML } = await import("./mercado-livre/importacao-perguntas");
+  await handlerPerguntaML(evento);
+});
